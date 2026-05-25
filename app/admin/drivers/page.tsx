@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Driver } from '@/types'
 import AddDriverForm from '@/components/admin/AddDriverForm'
+import DeleteDriverButton from '@/components/admin/DeleteDriverButton'
 
 export default async function DriversPage() {
   const { data: drivers } = await supabaseAdmin
@@ -25,6 +26,7 @@ export default async function DriversPage() {
               <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Rôle</th>
               <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Statut</th>
               <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Depuis</th>
+              <th className="px-5 py-3" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
@@ -49,11 +51,14 @@ export default async function DriversPage() {
                 <td className="px-5 py-3 text-gray-400 dark:text-gray-500">
                   {new Date(driver.created_at).toLocaleDateString('fr-FR')}
                 </td>
+                <td className="px-5 py-3">
+                  <DeleteDriverButton id={driver.id} name={`${driver.first_name} ${driver.last_name ?? ''}`.trim()} />
+                </td>
               </tr>
             ))}
             {!drivers?.length && (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-gray-400">
+                <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
                   Aucun livreur
                 </td>
               </tr>
