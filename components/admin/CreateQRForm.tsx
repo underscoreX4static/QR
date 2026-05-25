@@ -17,10 +17,42 @@ export default function CreateQRForm({ partners }: Props) {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    // If no partner selected, use or create a default "internal" partner
+    let partnerId = form.partner_id
+    if (!partnerId) {
+      // Try to find existing internal partner
+      const checkRes = await fetch('/api/partners')
+      const { partners: allPartners } = await checkRes.json()
+      const internal = allPartners.find((p: Partner) => p.name === 'Interne')
+
+      if (internal) {
+        partnerId = internal.id
+      } else {
+        const createRes = await fetch('/api/partners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Interne',
+            address: '-',
+            contact_name: 'Admin',
+            contact_phone: '-',
+          }),
+        })
+        if (!createRes.ok) {
+          setError('Erreur création partenaire interne')
+          setLoading(false)
+          return
+        }
+        const { partner } = await createRes.json()
+        partnerId = partner.id
+      }
+    }
+
     const res = await fetch('/api/qr', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ partner_id: partnerId, label: form.label }),
     })
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
@@ -50,20 +82,6 @@ export default function CreateQRForm({ partners }: Props) {
             {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
             <form onSubmit={submit} className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Partenaire</label>
-                <select
-                  required
-                  value={form.partner_id}
-                  onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Choisir...</option>
-                  {partners.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
                 <label className="block text-sm text-gray-600 mb-1">Label</label>
                 <input
                   required
@@ -73,19 +91,24 @@ export default function CreateQRForm({ partners }: Props) {
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setOpen(false)}
-                  className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Partenaire <span className="text-gray-400">(optionnel)</span></label>
+                <select
+                  value={form.partner_id}
+                  onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
+                  <option value="">Interne (aucun partenaire)</option>
+                  {partners.map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50">
                   Annuler
                 </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium disabled:opacity-50"
-                >
+                <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">
                   {loading ? 'Création...' : 'Créer'}
                 </button>
               </div>

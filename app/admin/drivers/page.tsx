@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Driver } from '@/types'
+import AddDriverForm from '@/components/admin/AddDriverForm'
 
 export default async function DriversPage() {
   const { data: drivers } = await supabaseAdmin
@@ -10,7 +11,10 @@ export default async function DriversPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900">Livreurs</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold text-gray-900">Livreurs</h2>
+        <AddDriverForm />
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <table className="w-full text-sm">
@@ -50,7 +54,7 @@ export default async function DriversPage() {
             {!drivers?.length && (
               <tr>
                 <td colSpan={5} className="px-5 py-8 text-center text-gray-400">
-                  Aucun livreur — ajoute-les directement en base Supabase avec leur telegram_id
+                  Aucun livreur
                 </td>
               </tr>
             )}
