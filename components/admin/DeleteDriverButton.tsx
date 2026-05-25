@@ -9,8 +9,9 @@ export default function DeleteDriverButton({ id, name }: { id: string; name: str
     if (!confirm(`Supprimer ${name} ?`)) return
     setLoading(true)
     const res = await fetch(`/api/drivers/${id}`, { method: 'DELETE' })
+    const json = await res.json().catch(() => ({}))
     if (!res.ok) {
-      alert('Erreur lors de la suppression')
+      alert(json.error ?? 'Erreur lors de la suppression')
       setLoading(false)
       return
     }
