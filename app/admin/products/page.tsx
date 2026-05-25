@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Category, Product, Variant } from '@/types'
 import AddProductForm from '@/components/admin/AddProductForm'

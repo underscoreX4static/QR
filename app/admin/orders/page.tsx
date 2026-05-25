@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Order } from '@/types'
 import OrderActions from '@/components/admin/OrderActions'

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Settlement, Driver } from '@/types'
 import CreateSettlementForm from '@/components/admin/CreateSettlementForm'

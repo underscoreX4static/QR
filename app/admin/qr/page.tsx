@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { QRCode, Partner } from '@/types'
 import CreateQRForm from '@/components/admin/CreateQRForm'

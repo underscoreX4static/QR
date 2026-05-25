@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Driver } from '@/types'
 import AddDriverForm from '@/components/admin/AddDriverForm'

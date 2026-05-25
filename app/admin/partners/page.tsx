@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Partner } from '@/types'
 import AddPartnerForm from '@/components/admin/AddPartnerForm'
