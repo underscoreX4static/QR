@@ -88,7 +88,7 @@ export default function CreateQRForm({ partners }: Props) {
                   placeholder="Ex: Table 5, Entrée principale..."
                   value={form.label}
                   onChange={(e) => setForm({ ...form, label: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 />
               </div>
               <div>
@@ -96,7 +96,7 @@ export default function CreateQRForm({ partners }: Props) {
                 <select
                   value={form.partner_id}
                   onChange={(e) => setForm({ ...form, partner_id: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 >
                   <option value="">Interne (aucun partenaire)</option>
                   {partners.map((p) => (

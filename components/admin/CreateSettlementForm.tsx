@@ -59,7 +59,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 >
                   <option value="driver">Livreur</option>
                   <option value="partner">Partenaire</option>
@@ -71,7 +71,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                   <select
                     value={form.driver_id}
                     onChange={(e) => setForm({ ...form, driver_id: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="admin-input"
                   >
                     <option value="">Tous les livreurs</option>
                     {drivers.map((d) => (
@@ -88,7 +88,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                     required
                     value={form.period_start}
                     onChange={(e) => setForm({ ...form, period_start: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="admin-input"
                   />
                 </div>
                 <div>
@@ -98,7 +98,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                     required
                     value={form.period_end}
                     onChange={(e) => setForm({ ...form, period_end: e.target.value })}
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="admin-input"
                   />
                 </div>
               </div>
@@ -107,7 +107,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                 <input
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 />
               </div>
               <div className="flex gap-2 pt-2">

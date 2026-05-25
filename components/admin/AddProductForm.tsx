@@ -55,7 +55,7 @@ export default function AddProductForm({ categories }: Props) {
                   required
                   value={form.category_id}
                   onChange={(e) => setForm({ ...form, category_id: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 >
                   <option value="">Choisir...</option>
                   {categories.map((c) => (
@@ -69,7 +69,7 @@ export default function AddProductForm({ categories }: Props) {
                   required
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="admin-input"
                 />
               </div>
               <div>
@@ -78,7 +78,7 @@ export default function AddProductForm({ categories }: Props) {
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   rows={2}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="admin-input resize-none"
                 />
               </div>
               <div className="flex gap-2 pt-2">
