@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Partner } from '@/types'
 
 interface Props { partners: Partner[] }
 
 export default function CreateQRForm({ partners }: Props) {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -61,7 +59,7 @@ export default function CreateQRForm({ partners }: Props) {
     setOpen(false)
     setForm({ partner_id: '', label: '' })
     setLoading(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (

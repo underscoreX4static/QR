@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Order, OrderStatus } from '@/types'
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -19,7 +18,6 @@ const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
 interface Props { order: Order }
 
 export default function OrderActions({ order }: Props) {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,7 +38,7 @@ export default function OrderActions({ order }: Props) {
       setLoading(false)
       return
     }
-    router.refresh()
+    window.location.reload()
     setLoading(false)
   }
 
@@ -59,7 +57,7 @@ export default function OrderActions({ order }: Props) {
       setLoading(false)
       return
     }
-    router.refresh()
+    window.location.reload()
     setLoading(false)
   }
 

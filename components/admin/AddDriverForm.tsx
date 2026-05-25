@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function AddDriverForm() {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,7 +26,7 @@ export default function AddDriverForm() {
     setOpen(false)
     setForm({ telegram_id: '', first_name: '', last_name: '', is_owner: false })
     setLoading(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (

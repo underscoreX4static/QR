@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 
 export default function AddPartnerForm() {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -28,7 +26,7 @@ export default function AddPartnerForm() {
     setOpen(false)
     setForm({ name: '', address: '', contact_name: '', contact_phone: '' })
     setLoading(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (

@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Driver } from '@/types'
 
 interface Props { drivers: Driver[] }
 
 export default function CreateSettlementForm({ drivers }: Props) {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -36,7 +34,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
     }
     setOpen(false)
     setLoading(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (

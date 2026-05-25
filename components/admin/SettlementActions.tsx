@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Settlement, SettlementStatus } from '@/types'
 
 // proposed → driver_confirmed → paid → payment_received → partner_confirmed
@@ -22,7 +21,6 @@ const NEXT_LABEL: Partial<Record<SettlementStatus, string>> = {
 interface Props { settlement: Settlement }
 
 export default function SettlementActions({ settlement }: Props) {
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -43,7 +41,7 @@ export default function SettlementActions({ settlement }: Props) {
       setLoading(false)
       return
     }
-    router.refresh()
+    window.location.reload()
     setLoading(false)
   }
 

@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { Category } from '@/types'
 
 interface Props { categories: Category[] }
 
 export default function AddProductForm({ categories }: Props) {
-  const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,7 +29,7 @@ export default function AddProductForm({ categories }: Props) {
     setOpen(false)
     setForm({ category_id: '', name: '', description: '' })
     setLoading(false)
-    router.refresh()
+    window.location.reload()
   }
 
   return (
