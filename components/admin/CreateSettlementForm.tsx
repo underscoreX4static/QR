@@ -50,12 +50,12 @@ export default function CreateSettlementForm({ drivers }: Props) {
 
       {open && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
-            <h3 className="font-bold text-gray-900 mb-4">Nouveau règlement</h3>
-            {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+          <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">Nouveau règlement</h3>
+            {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
             <form onSubmit={submit} className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Type</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Type</label>
                 <select
                   value={form.type}
                   onChange={(e) => setForm({ ...form, type: e.target.value })}
@@ -67,7 +67,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
               </div>
               {form.type === 'driver' && (
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Livreur</label>
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Livreur</label>
                   <select
                     value={form.driver_id}
                     onChange={(e) => setForm({ ...form, driver_id: e.target.value })}
@@ -82,7 +82,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Début</label>
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Début</label>
                   <input
                     type="date"
                     required
@@ -92,7 +92,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-600 mb-1">Fin</label>
+                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Fin</label>
                   <input
                     type="date"
                     required
@@ -103,7 +103,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                 </div>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 mb-1">Notes</label>
+                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Notes</label>
                 <input
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -111,7 +111,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
                 />
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setOpen(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600">
+                <button type="button" onClick={() => setOpen(false)} className="flex-1 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800">
                   Annuler
                 </button>
                 <button type="submit" disabled={loading} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium disabled:opacity-50">

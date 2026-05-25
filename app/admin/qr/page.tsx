@@ -22,24 +22,23 @@ export default async function QRPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">QR Codes</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">QR Codes</h2>
         <CreateQRForm partners={partners ?? []} />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {qrWithPartner.map((qr) => (
-          <div key={qr.id} className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+          <div key={qr.id} className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm space-y-3">
             <div className="flex items-start justify-between">
               <div>
-                <p className="font-semibold text-gray-900">{qr.label}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{qr.partner_name}</p>
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{qr.label}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{qr.partner_name}</p>
               </div>
-              <span className={`text-xs px-2 py-1 rounded-full ${qr.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              <span className={`text-xs px-2 py-1 rounded-full ${qr.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
                 {qr.is_active ? 'Actif' : 'Inactif'}
               </span>
             </div>
-            {/* QR image */}
-            <div className="flex justify-center">
+            <div className="flex justify-center bg-white rounded-xl p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={`/api/qr/image?slug=${qr.slug}`}
@@ -47,11 +46,11 @@ export default async function QRPage() {
                 className="w-32 h-32"
               />
             </div>
-            <div className="text-xs text-gray-400 font-mono text-center truncate">{qr.slug}</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500 font-mono text-center truncate">{qr.slug}</div>
             <a
               href={`/api/qr/image?slug=${qr.slug}`}
               download={`qr-${qr.slug}.png`}
-              className="block text-center text-xs text-blue-600 hover:underline"
+              className="block text-center text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
               Télécharger le QR
             </a>

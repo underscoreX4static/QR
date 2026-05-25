@@ -65,7 +65,7 @@ export default function OrderActions({ order }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       <div className="flex items-center gap-2">
         <button
           onClick={advance}
@@ -78,7 +78,7 @@ export default function OrderActions({ order }: Props) {
           <button
             onClick={cancel}
             disabled={loading}
-            className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 transition-colors"
+            className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
           >
             Annuler
           </button>

@@ -49,7 +49,7 @@ export default function SettlementActions({ settlement }: Props) {
 
   return (
     <div className="flex flex-col gap-1">
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
       <button
         onClick={advance}
         disabled={loading}
