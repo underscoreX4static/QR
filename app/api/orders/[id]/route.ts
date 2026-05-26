@@ -3,11 +3,13 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage } from '@/lib/telegram'
 import type { Order, OrderStatus, Driver } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending:     ['confirmed', 'cancelled'],
   confirmed:   ['preparing', 'cancelled'],
   preparing:   ['on_the_way', 'cancelled'],
-  on_the_way:  ['delivered'],
+  on_the_way:  ['delivered', 'cancelled'],
   delivered:   [],
   cancelled:   [],
 }
@@ -40,7 +42,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 // changed_by must be passed as "admin", "system", or "driver:<id>" — never trust raw user input
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const body = await req.json()
-  const { status, driver_id } = body
+  const { status, driver_id, cancel_reason } = body
 
   const { data: current } = await supabaseAdmin
     .from('orders')
@@ -123,7 +125,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       preparing:  `👨‍🍳 Your order #${shortId} is being prepared!`,
       on_the_way: `🛵 Your order #${shortId} is on the way!`,
       delivered:  `🎉 Your order #${shortId} has been delivered. Enjoy!`,
-      cancelled:  `❌ Your order #${shortId} has been cancelled.`,
+      cancelled:  cancel_reason
+        ? `❌ Your order #${shortId} has been cancelled.\n\n💬 "${cancel_reason}"`
+        : `❌ Your order #${shortId} has been cancelled.`,
     }
 
     const customerMsg = customerMessages[status as OrderStatus]

@@ -25,6 +25,16 @@ async function handleMessage(msg: TelegramBot.Message) {
 
   const driver = await getDriver(telegramId)
   if (driver) {
+    // Check if we're waiting for a cancel reason from this driver
+    const pendingKey = `pending_cancel:${telegramId}`
+    const { data: pending } = await supabaseAdmin
+      .from('settings').select('value').eq('key', pendingKey).single()
+
+    if (pending?.value) {
+      await handleCancelReason(chatId, telegramId, driver, pending.value, text)
+      return
+    }
+
     await handleDriverMessage(chatId, driver, text)
     return
   }
@@ -345,31 +355,28 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     return
   }
 
-  // ── cancel_order ───────────────────────────────────────────────────────────
+  // ── cancel_order — ask for reason first ───────────────────────────────────
   if (data.startsWith('cancel_order:')) {
     const orderId = data.split(':')[1]
     if (!orderId || orderId.length > 36 || !driver?.is_owner) return
 
-    const { data: updated, error } = await supabaseAdmin
-      .from('orders')
-      .update({ status: 'cancelled' })
-      .eq('id', orderId)
-      .in('status', ['pending', 'confirmed', 'preparing'])
-      .select('id,user_id')
-      .single()
+    // Check order is still cancellable
+    const { data: order } = await supabaseAdmin
+      .from('orders').select('status').eq('id', orderId).single()
 
-    if (error || !updated) {
-      await sendMessage(chatId, '⚠️ Could not cancel — order may already be on the way.')
+    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
+      await sendMessage(chatId, '⚠️ Cannot cancel — order may already be on the way.')
       return
     }
 
-    await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId, status: 'cancelled', changed_by: `driver:${driver.id}`,
-    })
+    // Store pending cancel state
+    await supabaseAdmin.from('settings').upsert(
+      { key: `pending_cancel:${telegramId}`, value: orderId },
+      { onConflict: 'key' }
+    )
 
     const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId, `❌ Order #${shortId} cancelled.`)
-    await notifyCustomer(updated.user_id, `❌ Your order #${shortId} has been cancelled.`)
+    await sendMessage(chatId, `❌ Cancelling order #${shortId}\n\nWhy are you cancelling? Send your message and it will be forwarded to the customer.`)
     return
   }
 
@@ -409,6 +416,32 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function handleCancelReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
+  // Clear pending state immediately
+  await supabaseAdmin.from('settings').delete().eq('key', `pending_cancel:${telegramId}`)
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('orders')
+    .update({ status: 'cancelled' })
+    .eq('id', orderId)
+    .in('status', ['pending', 'confirmed', 'preparing'])
+    .select('id,user_id')
+    .single()
+
+  if (error || !updated) {
+    await sendMessage(chatId, '⚠️ Could not cancel — order may already be on the way.')
+    return
+  }
+
+  await supabaseAdmin.from('order_status_history').insert({
+    order_id: orderId, status: 'cancelled', changed_by: `driver:${driver.id}`,
+  })
+
+  const shortId = orderId.slice(-6).toUpperCase()
+  await sendMessage(chatId, `✅ Order #${shortId} cancelled. Message sent to customer.`)
+  await notifyCustomer(updated.user_id, `❌ Your order #${shortId} has been cancelled.\n\n💬 "${reason}"`)
+}
 
 async function getDriver(telegramId: string): Promise<Driver | null> {
   const { data } = await supabaseAdmin

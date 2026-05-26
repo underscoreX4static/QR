@@ -63,7 +63,7 @@ function OrderCard({
   order: OrderWithItems
   busy: boolean
   err: string
-  onPatch: (id: string, status: OrderStatus) => void
+  onPatch: (id: string, status: OrderStatus, cancelReason?: string) => void
   onDelegate: (id: string) => void
 }) {
   const next = NEXT_STATUS[order.status]
@@ -152,7 +152,10 @@ function OrderCard({
                 </button>
               )}
               <button
-                onClick={() => { if (confirm('Cancel this order?')) onPatch(order.id, 'cancelled') }}
+                onClick={() => {
+                  const reason = window.prompt('Reason for cancellation? (will be sent to customer)')
+                  if (reason !== null) onPatch(order.id, 'cancelled', reason || undefined)
+                }}
                 disabled={busy}
                 className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
               >
@@ -177,7 +180,7 @@ export default function OrdersPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch('/api/admin/orders')
+      const res = await fetch('/api/admin/orders', { cache: 'no-store' })
       if (!res.ok) return
       const json = await res.json()
       setOrders(json.orders ?? [])
@@ -193,24 +196,14 @@ export default function OrdersPage() {
     return () => clearInterval(interval)
   }, [load])
 
-  const patch = async (orderId: string, status: OrderStatus) => {
+  const patch = async (orderId: string, status: OrderStatus, cancelReason?: string) => {
     setActionLoading(orderId)
     setErrors((e) => ({ ...e, [orderId]: '' }))
-
-    // Fetch current status first to avoid stale-state transitions
-    const current = await fetch(`/api/orders/${orderId}`).then((r) => r.ok ? r.json() : null)
-    const currentStatus = current?.order?.status as OrderStatus | undefined
-    if (currentStatus === status) {
-      // Already at target status — just sync UI
-      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
-      setActionLoading(null)
-      return
-    }
 
     const res = await fetch(`/api/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, cancel_reason: cancelReason }),
     })
     const json = await res.json().catch(() => ({}))
     if (!res.ok) {
@@ -218,15 +211,8 @@ export default function OrdersPage() {
       setActionLoading(null)
       return
     }
-    // Update status + append to history locally
-    setOrders((prev) => prev.map((o) => o.id === orderId ? {
-      ...o,
-      status,
-      history: [
-        ...o.history,
-        { order_id: orderId, status, changed_by: 'admin', changed_at: new Date().toISOString() },
-      ],
-    } : o))
+    // Reload from DB to get ground truth
+    await load(true)
     setActionLoading(null)
   }
 
@@ -238,6 +224,7 @@ export default function OrdersPage() {
       setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to delegate' }))
     } else {
       setDelegated((d) => ({ ...d, [orderId]: true }))
+      await load(true)
     }
     setActionLoading(null)
   }

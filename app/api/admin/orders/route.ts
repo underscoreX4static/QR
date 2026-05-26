@@ -9,6 +9,8 @@ interface StatusHistoryRow {
   changed_at: string
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   const { data: orders } = await supabaseAdmin
     .from('orders')
