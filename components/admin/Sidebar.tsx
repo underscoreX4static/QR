@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 
 const NAV = [
   { href: '/admin',             label: 'Overview',     icon: '📊' },
@@ -16,7 +17,14 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, toggle } = useTheme()
+
+  const handleLogout = async () => {
+    const supabase = createSupabaseBrowserClient()
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
 
   return (
     <>
@@ -51,6 +59,13 @@ export default function Sidebar() {
         >
           <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
           {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+        </button>
+        <button
+          onClick={handleLogout}
+          className="mx-3 mb-2 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+        >
+          <span>🚪</span>
+          Sign out
         </button>
       </aside>
 
