@@ -33,13 +33,8 @@ async function handleMessage(msg: TelegramBot.Message) {
   await sendOrderButton(chatId, user)
 }
 
-async function handleStart(
-  chatId: number,
-  telegramId: string,
-  from: TelegramBot.User,
-  rawText: string
-) {
-  const payload = rawText.split(' ')[1] // /start <qr_slug>
+async function handleStart(chatId: number, telegramId: string, from: TelegramBot.User, rawText: string) {
+  const payload = rawText.split(' ')[1]
 
   const driver = await getDriver(telegramId)
   if (driver) {
@@ -53,11 +48,7 @@ async function handleStart(
 
   if (payload && payload.length <= 64) {
     const { data: qrCode } = await supabaseAdmin
-      .from('qr_codes')
-      .select()
-      .eq('slug', payload)
-      .eq('is_active', true)
-      .single<QRCode>()
+      .from('qr_codes').select('id,slug,partner_id,label,is_active,created_at').eq('slug', payload).eq('is_active', true).single<QRCode>()
 
     if (qrCode) {
       await supabaseAdmin.from('qr_scans').insert({
@@ -67,25 +58,13 @@ async function handleStart(
       })
 
       if (!user.first_qr_source) {
-        await supabaseAdmin
-          .from('users')
-          .update({ first_qr_source: qrCode.id })
-          .eq('id', user.id)
+        await supabaseAdmin.from('users').update({ first_qr_source: qrCode.id }).eq('id', user.id)
       }
 
       const appUrl = `${process.env.NEXT_PUBLIC_APP_URL}/order?qr=${payload}`
-      await sendMessage(
-        chatId,
-        `Hello ${user.first_name} 👋\n\nTap the button to order 👇`,
-        {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '🛒 Order', web_app: { url: appUrl } },
-            ]],
-          },
-        }
-      )
+      await sendMessage(chatId, `Hello ${user.first_name} 👋\n\nTap the button to order 👇`, {
+        reply_markup: { inline_keyboard: [[{ text: '🛒 Order', web_app: { url: appUrl } }]] },
+      })
       return
     }
   }
@@ -93,12 +72,15 @@ async function handleStart(
   await sendOrderButton(chatId, user)
 }
 
+// ─── Driver message handler ────────────────────────────────────────────────────
+
 async function handleDriverMessage(chatId: number, driver: Driver, text: string) {
   if (text === '/orders') {
     const { data: orders } = await supabaseAdmin
       .from('orders')
       .select('id,status,delivery_address,total,notes,created_at')
-      .in('status', ['confirmed', 'preparing'])
+      .in('status', ['pending', 'confirmed', 'preparing'])
+      .is('driver_id', null)
       .order('created_at', { ascending: true })
       .limit(10)
       .returns<Order[]>()
@@ -108,54 +90,39 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
       return
     }
 
-    // Fetch items + product names for all orders at once
     const orderIds = orders.map((o) => o.id)
-    const { data: allItems } = await supabaseAdmin
-      .from('order_items')
-      .select('order_id,variant_id,quantity')
-      .in('order_id', orderIds)
-
-    const variantIds = Array.from(new Set((allItems ?? []).map((i) => i.variant_id)))
-    const { data: allVariants } = variantIds.length
-      ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds)
-      : { data: [] }
-
+    const { data: allItems } = await supabaseAdmin.from('order_items').select('order_id,variant_id,quantity').in('order_id', orderIds)
+    const variantIds = Array.from(new Set((allItems ?? []).map((i: { variant_id: string }) => i.variant_id)))
+    const { data: allVariants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
     const productIds = Array.from(new Set((allVariants ?? []).map((v: { product_id: string }) => v.product_id)))
-    const { data: allProducts } = productIds.length
-      ? await supabaseAdmin.from('products').select('id,name').in('id', productIds)
-      : { data: [] }
-
+    const { data: allProducts } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
     const variantMap = Object.fromEntries((allVariants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
     const productMap = Object.fromEntries((allProducts ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
 
-    const STATUS_LABELS: Record<string, string> = {
-      confirmed: 'Confirmed',
-      preparing: 'Preparing',
-    }
-
     for (const order of orders) {
-      const items = (allItems ?? []).filter((i) => i.order_id === order.id)
-      const itemLines = items.map((i) => {
+      const items = (allItems ?? []).filter((i: { order_id: string }) => i.order_id === order.id)
+      const itemLines = items.map((i: { quantity: number; variant_id: string }) => {
         const v = variantMap[i.variant_id]
         const name = v ? (productMap[v.product_id] ?? '?') : '?'
-        const size = v?.size ?? ''
-        return `  • ${i.quantity}× ${name}${size ? ` ${size}` : ''}`
+        return `  • ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
       }).join('\n')
 
-      const statusLabel = STATUS_LABELS[order.status] ?? order.status
-      let msg = `📦 Order #${order.id.slice(-6).toUpperCase()} — ${statusLabel}\n`
+      let msg = `📦 Order #${order.id.slice(-6).toUpperCase()}\n`
       msg += `📍 ${order.delivery_address}\n`
       if (itemLines) msg += `\n${itemLines}\n`
       if (order.notes) msg += `\n💬 ${order.notes}\n`
       msg += `\n💶 Total: ${Number(order.total).toFixed(2)}€`
 
-      await sendMessage(chatId, msg, {
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '✅ Take order', callback_data: `take_order:${order.id}` },
-          ]],
-        },
-      })
+      // Owner gets confirm/delegate/cancel — external driver only gets take_order
+      const keyboard = driver.is_owner
+        ? [[
+            { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
+            { text: '🛵 Delegate', callback_data: `delegate_order:${order.id}` },
+            { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
+          ]]
+        : [[{ text: '✅ Take order', callback_data: `take_order:${order.id}` }]]
+
+      await sendMessage(chatId, msg, { reply_markup: { inline_keyboard: keyboard } })
     }
     return
   }
@@ -163,60 +130,281 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
   await sendMessage(chatId, 'Available commands: /orders')
 }
 
+// ─── Callback query handler ────────────────────────────────────────────────────
+
 async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
   const chatId = query.message?.chat.id
   const telegramId = String(query.from.id)
   const data = query.data
 
-  // Always acknowledge the callback to stop the loading spinner
   await answerCallbackQuery(query.id)
-
   if (!chatId || !data) return
 
-  if (data.startsWith('take_order:')) {
+  const driver = await getDriver(telegramId)
+
+  // ── confirm_order ──────────────────────────────────────────────────────────
+  if (data.startsWith('confirm_order:')) {
     const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver?.is_owner) return
 
-    // Validate orderId length to prevent injection
-    if (!orderId || orderId.length > 36) return
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'confirmed' })
+      .eq('id', orderId)
+      .eq('status', 'pending')
+      .select('id,delivery_address,total,user_id')
+      .single()
 
-    const driver = await getDriver(telegramId)
-    if (!driver) {
-      await sendMessage(chatId, 'Unauthorized.')
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not confirm — order may have already been handled.')
       return
     }
 
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId,
+      status: 'confirmed',
+      changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId,
+      `✅ Order #${shortId} confirmed!\n\nHandle it yourself or delegate 👇`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🛵 Delegate to driver', callback_data: `delegate_order:${orderId}` },
+            { text: '🍳 I\'ll handle it', callback_data: `self_handle:${orderId}` },
+          ]],
+        },
+      }
+    )
+
+    // Notify customer
+    await notifyCustomer(updated.user_id, `✅ Your order #${shortId} has been confirmed!`)
+    return
+  }
+
+  // ── self_handle ────────────────────────────────────────────────────────────
+  if (data.startsWith('self_handle:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver?.is_owner) return
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ driver_id: driver.id, status: 'preparing' })
+      .eq('id', orderId)
+      .in('status', ['confirmed', 'pending'])
+      .select('id,delivery_address,user_id')
+      .single()
+
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not update order.')
+      return
+    }
+
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId,
+      status: 'preparing',
+      changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId,
+      `👨‍🍳 Order #${shortId} — you're on it!\n📍 ${updated.delivery_address}\n\nTap when you're on the way 👇`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🛵 On the way', callback_data: `on_the_way:${orderId}` },
+          ]],
+        },
+      }
+    )
+
+    await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
+    return
+  }
+
+  // ── on_the_way ─────────────────────────────────────────────────────────────
+  if (data.startsWith('on_the_way:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver) return
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'on_the_way' })
+      .eq('id', orderId)
+      .eq('driver_id', driver.id)
+      .in('status', ['preparing', 'confirmed'])
+      .select('id,delivery_address,user_id')
+      .single()
+
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not update order.')
+      return
+    }
+
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId,
+      status: 'on_the_way',
+      changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId,
+      `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\nTap when delivered 👇`,
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '✅ Delivered', callback_data: `delivered:${orderId}` },
+          ]],
+        },
+      }
+    )
+
+    await notifyCustomer(updated.user_id, `🛵 Your order #${shortId} is on the way!`)
+    return
+  }
+
+  // ── delivered ──────────────────────────────────────────────────────────────
+  if (data.startsWith('delivered:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver) return
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'delivered' })
+      .eq('id', orderId)
+      .eq('driver_id', driver.id)
+      .eq('status', 'on_the_way')
+      .select('id,user_id')
+      .single()
+
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not mark as delivered.')
+      return
+    }
+
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId,
+      status: 'delivered',
+      changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId, `🎉 Order #${shortId} delivered! Great job.`)
+    await notifyCustomer(updated.user_id, `🎉 Your order #${shortId} has been delivered. Enjoy!`)
+    return
+  }
+
+  // ── delegate_order ─────────────────────────────────────────────────────────
+  if (data.startsWith('delegate_order:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver?.is_owner) return
+
+    const { data: order } = await supabaseAdmin
+      .from('orders')
+      .select('id,status,delivery_address,total,notes')
+      .eq('id', orderId)
+      .single<Pick<Order, 'id' | 'status' | 'delivery_address' | 'total' | 'notes'>>()
+
+    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
+      await sendMessage(chatId, '⚠️ Cannot delegate this order.')
+      return
+    }
+
+    // Ensure confirmed before delegating
+    if (order.status === 'pending') {
+      await supabaseAdmin.from('orders').update({ status: 'confirmed' }).eq('id', orderId)
+      await supabaseAdmin.from('order_status_history').insert({
+        order_id: orderId, status: 'confirmed', changed_by: `driver:${driver.id}`,
+      })
+    }
+
+    const { data: externalDrivers } = await supabaseAdmin
+      .from('drivers').select('id,telegram_id,first_name').eq('is_owner', false).eq('is_active', true).returns<Driver[]>()
+
+    if (!externalDrivers?.length) {
+      await sendMessage(chatId, '⚠️ No external drivers available.')
+      return
+    }
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    let msg = `🚨 Delivery needed — Order #${shortId}\n📍 ${order.delivery_address}`
+    if (order.notes) msg += `\n💬 ${order.notes}`
+    msg += `\n💶 ${Number(order.total).toFixed(2)}€`
+
+    await Promise.allSettled(
+      externalDrivers.map((d) =>
+        sendMessage(Number(d.telegram_id), msg, {
+          reply_markup: { inline_keyboard: [[{ text: '✅ Take order', callback_data: `take_order:${orderId}` }]] },
+        })
+      )
+    )
+
+    await sendMessage(chatId, `🛵 Order #${shortId} sent to ${externalDrivers.length} driver${externalDrivers.length > 1 ? 's' : ''}.`)
+    return
+  }
+
+  // ── cancel_order ───────────────────────────────────────────────────────────
+  if (data.startsWith('cancel_order:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver?.is_owner) return
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ status: 'cancelled' })
+      .eq('id', orderId)
+      .in('status', ['pending', 'confirmed', 'preparing'])
+      .select('id,user_id')
+      .single()
+
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not cancel — order may already be on the way.')
+      return
+    }
+
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId, status: 'cancelled', changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId, `❌ Order #${shortId} cancelled.`)
+    await notifyCustomer(updated.user_id, `❌ Your order #${shortId} has been cancelled.`)
+    return
+  }
+
+  // ── take_order (external driver) ───────────────────────────────────────────
+  if (data.startsWith('take_order:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver) return
+
     const { data: takenOrder, error } = await supabaseAdmin
       .from('orders')
-      .update({ driver_id: driver.id, status: 'on_the_way' as const })
+      .update({ driver_id: driver.id, status: 'on_the_way' })
       .eq('id', orderId)
       .in('status', ['confirmed', 'preparing'])
       .select('id,user_id,delivery_address')
       .single()
 
     if (error || !takenOrder) {
-      await sendMessage(chatId, 'Error taking order. It may have already been taken.')
+      await sendMessage(chatId, '⚠️ Could not take order — it may have already been taken.')
       return
     }
 
     await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId,
-      status: 'on_the_way' as const,
-      changed_by: `driver:${driver.id}`,
+      order_id: orderId, status: 'on_the_way', changed_by: `driver:${driver.id}`,
     })
 
     const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId, `✅ Order #${shortId} taken.\nAddress: ${takenOrder.delivery_address}\n\nGood delivery! 🛵`)
+    await sendMessage(chatId,
+      `✅ Order #${shortId} taken!\n📍 ${takenOrder.delivery_address}\n\nTap when delivered 👇`,
+      {
+        reply_markup: { inline_keyboard: [[{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }]] },
+      }
+    )
 
-    // Notify customer
-    const { data: customer } = await supabaseAdmin
-      .from('users')
-      .select('telegram_id')
-      .eq('id', takenOrder.user_id)
-      .single()
-
-    if (customer?.telegram_id) {
-      await sendMessage(Number(customer.telegram_id), `🛵 Your order #${shortId} is on the way!`).catch(() => null)
-    }
+    await notifyCustomer(takenOrder.user_id, `🛵 Your order #${shortId} is on the way!`)
+    return
   }
 }
 
@@ -224,65 +412,46 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
 async function getDriver(telegramId: string): Promise<Driver | null> {
   const { data } = await supabaseAdmin
-    .from('drivers')
-    .select()
-    .eq('telegram_id', telegramId)
-    .eq('is_active', true)
-    .single<Driver>()
+    .from('drivers').select('id,telegram_id,first_name,last_name,is_owner,is_active,created_at')
+    .eq('telegram_id', telegramId).eq('is_active', true).single<Driver>()
   return data
 }
 
 async function getOrCreateUser(telegramId: string, from: TelegramBot.User): Promise<User> {
-  // Upsert to avoid race conditions on concurrent first messages
   const { data } = await supabaseAdmin
     .from('users')
     .upsert(
-      {
-        telegram_id: telegramId,
-        first_name: from.first_name,
-        last_name: from.last_name ?? null,
-      },
+      { telegram_id: telegramId, first_name: from.first_name, last_name: from.last_name ?? null },
       { onConflict: 'telegram_id', ignoreDuplicates: false }
     )
-    .select()
-    .single<User>()
-
+    .select().single<User>()
   return data!
 }
 
-function driverKeyboard(): TelegramBot.ReplyKeyboardMarkup {
-  return {
-    keyboard: [[{ text: '/orders' }]],
-    resize_keyboard: true,
+async function notifyCustomer(userId: string, msg: string) {
+  const { data: user } = await supabaseAdmin.from('users').select('telegram_id').eq('id', userId).single()
+  if (user?.telegram_id) {
+    await sendMessage(Number(user.telegram_id), msg).catch(() => null)
   }
 }
 
+function driverKeyboard(): TelegramBot.ReplyKeyboardMarkup {
+  return { keyboard: [[{ text: '/orders' }]], resize_keyboard: true }
+}
+
 async function sendOrderButton(chatId: number, user: User) {
-  // Find the last active QR code this user scanned
   const { data: lastScan } = await supabaseAdmin
-    .from('qr_scans')
-    .select('qr_code_id')
-    .eq('user_id', user.id)
-    .order('scanned_at', { ascending: false })
-    .limit(1)
-    .single()
+    .from('qr_scans').select('qr_code_id').eq('user_id', user.id)
+    .order('scanned_at', { ascending: false }).limit(1).single()
 
   if (lastScan?.qr_code_id) {
     const { data: qrCode } = await supabaseAdmin
-      .from('qr_codes')
-      .select('slug')
-      .eq('id', lastScan.qr_code_id)
-      .eq('is_active', true)
-      .single<Pick<QRCode, 'slug'>>()
+      .from('qr_codes').select('slug').eq('id', lastScan.qr_code_id).eq('is_active', true).single<Pick<QRCode, 'slug'>>()
 
     if (qrCode) {
       const appUrl = `${process.env.NEXT_PUBLIC_APP_URL}/order?qr=${qrCode.slug}`
       await sendMessage(chatId, `👋 Tap the button to order again`, {
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '🛒 Order', web_app: { url: appUrl } },
-          ]],
-        },
+        reply_markup: { inline_keyboard: [[{ text: '🛒 Order', web_app: { url: appUrl } }]] },
       })
       return
     }

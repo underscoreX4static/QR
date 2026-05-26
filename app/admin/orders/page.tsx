@@ -196,6 +196,17 @@ export default function OrdersPage() {
   const patch = async (orderId: string, status: OrderStatus) => {
     setActionLoading(orderId)
     setErrors((e) => ({ ...e, [orderId]: '' }))
+
+    // Fetch current status first to avoid stale-state transitions
+    const current = await fetch(`/api/orders/${orderId}`).then((r) => r.ok ? r.json() : null)
+    const currentStatus = current?.order?.status as OrderStatus | undefined
+    if (currentStatus === status) {
+      // Already at target status — just sync UI
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
+      setActionLoading(null)
+      return
+    }
+
     const res = await fetch(`/api/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
