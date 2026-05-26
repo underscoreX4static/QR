@@ -76,7 +76,7 @@ async function handleStart(
       const appUrl = `${process.env.NEXT_PUBLIC_APP_URL}/order?qr=${payload}`
       await sendMessage(
         chatId,
-        `Hello ${user.first_name} 👋\nQR detected: *${qrCode.label}*\n\nTap the button to order 👇`,
+        `Hello ${user.first_name} 👋\n\nTap the button to order 👇`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
