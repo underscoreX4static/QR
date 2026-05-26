@@ -19,7 +19,6 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const [street, setStreet] = useState('')
   const [suburb, setSuburb] = useState('')
   const [postcode, setPostcode] = useState('')
-  const [state, setState] = useState('QLD')
   const [notes, setNotes] = useState('')
   const [postcodeError, setPostcodeError] = useState('')
 
@@ -36,12 +35,15 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
     }
   }, [postcode])
 
-  const deliveryFee = postcode.length === 4 && !postcodeError
+  // Delivery fee: known once postcode is valid, estimated as DELIVERY_FEE until then
+  const postcodeValid = postcode.length === 4 && !postcodeError
+  const deliveryFee = postcodeValid
     ? (subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE)
     : null
 
-  const total = subtotal + (deliveryFee ?? 0)
-  const isFreeDelivery = deliveryFee === 0
+  const effectiveFee = deliveryFee ?? (subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE)
+  const total = subtotal + effectiveFee
+  const isFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -49,11 +51,11 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
     if (!street.trim() || !suburb.trim() || !postcode.trim() || !state.trim()) return
     if (postcode.length !== 4 || postcodeError) return
 
-    const fullAddress = `${street.trim()}, ${suburb.trim()} ${state.trim()} ${postcode.trim()}, Australia`
+    const fullAddress = `${street.trim()}, ${suburb.trim()} QLD ${postcode.trim()}, Australia`
     onOrder(fullAddress, notes)
   }
 
-  const canSubmit = street.trim() && suburb.trim() && postcode.length === 4 && !postcodeError && !isLoading
+  const canSubmit = !!(street.trim() && suburb.trim() && postcodeValid && !isLoading)
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -148,24 +150,6 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
               )}
 
               <div>
-                <label className="block text-sm text-gray-600 mb-1">State *</label>
-                <select
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                >
-                  <option value="QLD">QLD</option>
-                  <option value="NSW">NSW</option>
-                  <option value="VIC">VIC</option>
-                  <option value="SA">SA</option>
-                  <option value="WA">WA</option>
-                  <option value="TAS">TAS</option>
-                  <option value="ACT">ACT</option>
-                  <option value="NT">NT</option>
-                </select>
-              </div>
-
-              <div>
                 <label className="block text-sm text-gray-600 mb-1">Delivery notes (optional)</label>
                 <textarea
                   value={notes}
@@ -184,12 +168,10 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Delivery</span>
-                  {deliveryFee === null ? (
-                    <span className="text-gray-400">Enter postcode</span>
-                  ) : isFreeDelivery ? (
+                  {isFreeDelivery ? (
                     <span className="text-green-600 font-semibold">FREE</span>
                   ) : (
-                    <span>${deliveryFee.toFixed(2)}</span>
+                    <span>${effectiveFee.toFixed(2)}</span>
                   )}
                 </div>
                 <div className="flex justify-between font-bold text-gray-900 text-base pt-1 border-t border-gray-100">
