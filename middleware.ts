@@ -4,7 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Only protect /admin routes
   if (!pathname.startsWith('/admin')) return NextResponse.next()
 
   let response = NextResponse.next({ request })
@@ -32,6 +31,20 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     loginUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(loginUrl)
+  }
+
+  // Check user is in admins table
+  const { data: admin } = await supabase
+    .from('admins')
+    .select('user_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!admin) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('error', 'unauthorized')
     return NextResponse.redirect(loginUrl)
   }
 
