@@ -4,15 +4,17 @@ import { useState } from 'react'
 import type { Order, OrderStatus } from '@/types'
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending:   'confirmed',
-  confirmed: 'preparing',
-  preparing: 'on_the_way',
+  pending:    'confirmed',
+  confirmed:  'preparing',
+  preparing:  'on_the_way',
+  on_the_way: 'delivered',
 }
 
 const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
-  pending:   'Confirm',
-  confirmed: 'Preparing',
-  preparing: 'On the way',
+  pending:    'Confirm',
+  confirmed:  'Preparing',
+  preparing:  'On the way',
+  on_the_way: 'Delivered',
 }
 
 interface Props { order: Order }
@@ -72,7 +74,7 @@ export default function OrderActions({ order }: Props) {
         >
           {NEXT_LABEL[order.status]}
         </button>
-        {order.status !== 'cancelled' && (
+        {order.status !== 'cancelled' && order.status !== 'on_the_way' && order.status !== 'delivered' && (
           <button
             onClick={cancel}
             disabled={loading}

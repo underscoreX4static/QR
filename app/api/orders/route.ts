@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const driverId = searchParams.get('driver_id')
   const status = searchParams.get('status')
 
-  let query = supabaseAdmin.from('orders').select().order('created_at', { ascending: false })
+  let query = supabaseAdmin.from('orders').select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at').order('created_at', { ascending: false })
 
   if (userId) query = query.eq('user_id', userId)
   if (driverId) query = query.eq('driver_id', driverId)
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 // POST /api/orders — create a new order
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { user_id, telegram_id, qr_code_id, delivery_address, notes, scheduled_at, items } = body
+  const { user_id, telegram_id, qr_code_id, delivery_address, notes, items } = body
 
   if (!qr_code_id || !delivery_address || !items?.length || (!user_id && !telegram_id)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -94,7 +94,6 @@ export async function POST(req: NextRequest) {
       qr_code_id,
       delivery_address,
       notes: notes ?? null,
-      scheduled_at: scheduled_at ?? null,
       subtotal,
       delivery_fee: deliveryFee,
       total,

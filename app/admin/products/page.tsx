@@ -45,28 +45,39 @@ export default async function ProductsPage() {
           ) : (
             <div className="divide-y divide-gray-50 dark:divide-gray-800">
               {cat.products.map((product) => (
-                <div key={product.id} className="px-4 py-3">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{product.name}</p>
-                  {product.variants.length === 0 ? (
-                    <p className="text-xs text-gray-400">No variants</p>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {product.variants.map((variant) => (
-                        <div key={variant.id} className="flex items-center justify-between gap-2 text-sm">
-                          <span className="text-gray-600 dark:text-gray-300">{variant.size}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-900 dark:text-gray-100 font-medium">{Number(variant.price_sell).toFixed(2)}€</span>
-                            <span className={`text-xs ${variant.stock_qty <= 5 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
-                              stock: {variant.stock_qty}
-                            </span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${variant.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                              {variant.is_active ? 'Active' : 'Inactive'}
-                            </span>
+                <div key={product.id} className="px-4 py-3 flex gap-3">
+                  {/* Product image */}
+                  <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 shrink-0 flex items-center justify-center">
+                    {product.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-2xl">🛍️</span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 dark:text-gray-100 mb-1.5 truncate">{product.name}</p>
+                    {product.variants.length === 0 ? (
+                      <p className="text-xs text-gray-400">No variants</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {product.variants.map((variant) => (
+                          <div key={variant.id} className="flex items-center justify-between gap-2 text-sm">
+                            <span className="text-gray-600 dark:text-gray-300">{variant.size}</span>
+                            <div className="flex items-center gap-3">
+                              <span className="text-gray-900 dark:text-gray-100 font-medium">{Number(variant.price_sell).toFixed(2)}€</span>
+                              <span className={`text-xs ${variant.stock_qty <= 5 ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                                stock: {variant.stock_qty}
+                              </span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${variant.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+                                {variant.is_active ? 'Active' : 'Inactive'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

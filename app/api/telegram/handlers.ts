@@ -95,31 +95,67 @@ async function handleStart(
 
 async function handleDriverMessage(chatId: number, driver: Driver, text: string) {
   if (text === '/orders') {
-    const { data: rawOrders } = await supabaseAdmin
+    const { data: orders } = await supabaseAdmin
       .from('orders')
-      .select()
+      .select('id,status,delivery_address,total,notes,created_at')
       .in('status', ['confirmed', 'preparing'])
       .order('created_at', { ascending: true })
       .limit(10)
-    const orders = rawOrders as Order[] | null
+      .returns<Order[]>()
 
     if (!orders?.length) {
       await sendMessage(chatId, 'No pending orders.')
       return
     }
 
+    // Fetch items + product names for all orders at once
+    const orderIds = orders.map((o) => o.id)
+    const { data: allItems } = await supabaseAdmin
+      .from('order_items')
+      .select('order_id,variant_id,quantity')
+      .in('order_id', orderIds)
+
+    const variantIds = Array.from(new Set((allItems ?? []).map((i) => i.variant_id)))
+    const { data: allVariants } = variantIds.length
+      ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds)
+      : { data: [] }
+
+    const productIds = Array.from(new Set((allVariants ?? []).map((v: { product_id: string }) => v.product_id)))
+    const { data: allProducts } = productIds.length
+      ? await supabaseAdmin.from('products').select('id,name').in('id', productIds)
+      : { data: [] }
+
+    const variantMap = Object.fromEntries((allVariants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
+    const productMap = Object.fromEntries((allProducts ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+
+    const STATUS_LABELS: Record<string, string> = {
+      confirmed: 'Confirmed',
+      preparing: 'Preparing',
+    }
+
     for (const order of orders) {
-      await sendMessage(
-        chatId,
-        `📦 Order #${order.id.slice(-6).toUpperCase()}\nStatus: ${order.status}\nAddress: ${order.delivery_address}\nTotal: ${order.total}€`,
-        {
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '✅ Take order', callback_data: `take_order:${order.id}` },
-            ]],
-          },
-        }
-      )
+      const items = (allItems ?? []).filter((i) => i.order_id === order.id)
+      const itemLines = items.map((i) => {
+        const v = variantMap[i.variant_id]
+        const name = v ? (productMap[v.product_id] ?? '?') : '?'
+        const size = v?.size ?? ''
+        return `  • ${i.quantity}× ${name}${size ? ` ${size}` : ''}`
+      }).join('\n')
+
+      const statusLabel = STATUS_LABELS[order.status] ?? order.status
+      let msg = `📦 Order #${order.id.slice(-6).toUpperCase()} — ${statusLabel}\n`
+      msg += `📍 ${order.delivery_address}\n`
+      if (itemLines) msg += `\n${itemLines}\n`
+      if (order.notes) msg += `\n💬 ${order.notes}\n`
+      msg += `\n💶 Total: ${Number(order.total).toFixed(2)}€`
+
+      await sendMessage(chatId, msg, {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '✅ Take order', callback_data: `take_order:${order.id}` },
+          ]],
+        },
+      })
     }
     return
   }
@@ -149,14 +185,16 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       return
     }
 
-    const { error } = await supabaseAdmin
+    const { data: takenOrder, error } = await supabaseAdmin
       .from('orders')
       .update({ driver_id: driver.id, status: 'on_the_way' as const })
       .eq('id', orderId)
       .in('status', ['confirmed', 'preparing'])
+      .select('id,user_id,delivery_address')
+      .single()
 
-    if (error) {
-      await sendMessage(chatId, 'Error taking order.')
+    if (error || !takenOrder) {
+      await sendMessage(chatId, 'Error taking order. It may have already been taken.')
       return
     }
 
@@ -166,7 +204,19 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
-    await sendMessage(chatId, `✅ Order #${orderId.slice(-6).toUpperCase()} taken.\nGood delivery!`)
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId, `✅ Order #${shortId} taken.\nAddress: ${takenOrder.delivery_address}\n\nGood delivery! 🛵`)
+
+    // Notify customer
+    const { data: customer } = await supabaseAdmin
+      .from('users')
+      .select('telegram_id')
+      .eq('id', takenOrder.user_id)
+      .single()
+
+    if (customer?.telegram_id) {
+      await sendMessage(Number(customer.telegram_id), `🛵 Your order #${shortId} is on the way!`).catch(() => null)
+    }
   }
 }
 

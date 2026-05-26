@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { Order, OrderStatus } from '@/types'
+import { sendMessage } from '@/lib/telegram'
+import type { Order, OrderStatus, Driver } from '@/types'
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending:     ['confirmed', 'cancelled'],
@@ -15,7 +16,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select()
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .eq('id', params.id)
     .single<Order>()
 
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const { data: current } = await supabaseAdmin
     .from('orders')
-    .select()
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .eq('id', params.id)
     .single<Order>()
 
@@ -85,7 +86,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .from('orders')
     .update(updates)
     .eq('id', params.id)
-    .select()
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .single<Order>()
 
   if (error || !updated) {
@@ -93,12 +94,49 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   if (status) {
-    // changed_by is always set server-side — never from request body
     await supabaseAdmin.from('order_status_history').insert({
       order_id: params.id,
       status: status as OrderStatus,
       changed_by: driver_id ? `driver:${driver_id}` : 'admin',
     })
+
+    const shortId = params.id.slice(-6).toUpperCase()
+
+    // Notify all active drivers when order is confirmed
+    if (status === 'confirmed') {
+      const { data: drivers } = await supabaseAdmin
+        .from('drivers')
+        .select('id,telegram_id,first_name')
+        .eq('is_active', true)
+        .returns<Driver[]>()
+
+      const driverMsg = `🔔 New order #${shortId}\nAddress: ${updated.delivery_address}\nTotal: ${updated.total}€\n\nType /orders to accept it.`
+      await Promise.allSettled(
+        (drivers ?? []).map((d) => sendMessage(Number(d.telegram_id), driverMsg))
+      )
+    }
+
+    // Notify customer on key status changes
+    const customerMessages: Partial<Record<OrderStatus, string>> = {
+      confirmed:  `✅ Your order #${shortId} has been confirmed!`,
+      preparing:  `👨‍🍳 Your order #${shortId} is being prepared!`,
+      on_the_way: `🛵 Your order #${shortId} is on the way!`,
+      delivered:  `🎉 Your order #${shortId} has been delivered. Enjoy!`,
+      cancelled:  `❌ Your order #${shortId} has been cancelled.`,
+    }
+
+    const customerMsg = customerMessages[status as OrderStatus]
+    if (customerMsg) {
+      const { data: user } = await supabaseAdmin
+        .from('users')
+        .select('telegram_id')
+        .eq('id', updated.user_id)
+        .single()
+
+      if (user?.telegram_id) {
+        await sendMessage(Number(user.telegram_id), customerMsg).catch(() => null)
+      }
+    }
   }
 
   return NextResponse.json({ order: updated })
