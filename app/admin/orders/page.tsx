@@ -174,19 +174,24 @@ export default function OrdersPage() {
   const [showHistory, setShowHistory] = useState(false)
   const [delegated, setDelegated] = useState<Record<string, boolean>>({})
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await fetch('/api/admin/orders')
       if (!res.ok) return
       const json = await res.json()
       setOrders(json.orders ?? [])
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    // Auto-refresh every 15s silently
+    const interval = setInterval(() => load(true), 15000)
+    return () => clearInterval(interval)
+  }, [load])
 
   const patch = async (orderId: string, status: OrderStatus) => {
     setActionLoading(orderId)
