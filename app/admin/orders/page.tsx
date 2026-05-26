@@ -20,7 +20,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default async function OrdersPage() {
   const { data: orders } = await supabaseAdmin
-    .from('orders').select().order('created_at', { ascending: false }).limit(50).returns<Order[]>()
+    .from('orders').select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at').order('created_at', { ascending: false }).limit(50).returns<Order[]>()
 
   return (
     <div className="space-y-4">

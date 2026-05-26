@@ -20,8 +20,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default async function SettlementsPage() {
   const [{ data: settlements }, { data: drivers }] = await Promise.all([
-    supabaseAdmin.from('settlements').select().order('proposed_at', { ascending: false }).returns<Settlement[]>(),
-    supabaseAdmin.from('drivers').select().eq('is_active', true).returns<Driver[]>(),
+    supabaseAdmin.from('settlements').select('id,type,status,driver_id,period_start,period_end,total_cash,payout_amount,proposed_by,proposed_at,confirmed_at,payment_confirmed_at,notes').order('proposed_at', { ascending: false }).returns<Settlement[]>(),
+    supabaseAdmin.from('drivers').select('id,telegram_id,first_name,last_name,is_owner,is_active,created_at').eq('is_active', true).returns<Driver[]>(),
   ])
 
   const driverMap = Object.fromEntries((drivers ?? []).map((d) => [d.id, `${d.first_name} ${d.last_name ?? ''}`]))

@@ -8,8 +8,8 @@ interface QRWithPartner extends QRCode { partner_name: string }
 
 export default async function QRPage() {
   const [{ data: qrCodes }, { data: partners }] = await Promise.all([
-    supabaseAdmin.from('qr_codes').select().order('created_at', { ascending: false }).returns<QRCode[]>(),
-    supabaseAdmin.from('partners').select().eq('is_active', true).returns<Partner[]>(),
+    supabaseAdmin.from('qr_codes').select('id,partner_id,slug,label,is_active,created_at').order('created_at', { ascending: false }).returns<QRCode[]>(),
+    supabaseAdmin.from('partners').select('id,name,address,contact_name,contact_phone,is_active,created_at').eq('is_active', true).returns<Partner[]>(),
   ])
 
   const partnerMap = Object.fromEntries((partners ?? []).map((p) => [p.id, p.name]))

@@ -10,9 +10,9 @@ interface CategoryWithProducts extends Category { products: ProductWithVariants[
 
 export default async function ProductsPage() {
   const [{ data: categories }, { data: products }, { data: variants }] = await Promise.all([
-    supabaseAdmin.from('categories').select().order('sort_order').returns<Category[]>(),
-    supabaseAdmin.from('products').select().returns<Product[]>(),
-    supabaseAdmin.from('variants').select().returns<Variant[]>(),
+    supabaseAdmin.from('categories').select('id,name,image_url,sort_order,is_active').order('sort_order').returns<Category[]>(),
+    supabaseAdmin.from('products').select('id,category_id,name,description,image_url,brand,subcategory,is_active').returns<Product[]>(),
+    supabaseAdmin.from('variants').select('id,product_id,size,price_sell,price_cost,stock_qty,is_active').returns<Variant[]>(),
   ])
 
   const catalogue: CategoryWithProducts[] = (categories ?? []).map((cat) => ({

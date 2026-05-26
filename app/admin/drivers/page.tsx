@@ -8,7 +8,7 @@ import DeleteDriverButton from '@/components/admin/DeleteDriverButton'
 
 export default async function DriversPage() {
   const { data: drivers } = await supabaseAdmin
-    .from('drivers').select().order('created_at', { ascending: false }).returns<Driver[]>()
+    .from('drivers').select('id,telegram_id,first_name,last_name,is_owner,is_active,created_at').order('created_at', { ascending: false }).returns<Driver[]>()
 
   return (
     <div className="space-y-4">

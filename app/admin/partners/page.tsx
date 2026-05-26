@@ -6,7 +6,7 @@ import AddPartnerForm from '@/components/admin/AddPartnerForm'
 
 export default async function PartnersPage() {
   const { data: partners } = await supabaseAdmin
-    .from('partners').select().order('created_at', { ascending: false }).returns<Partner[]>()
+    .from('partners').select('id,name,address,contact_name,contact_phone,is_active,created_at').order('created_at', { ascending: false }).returns<Partner[]>()
 
   return (
     <div className="space-y-4">
