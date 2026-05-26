@@ -6,11 +6,8 @@ import CreateSettlementForm from '@/components/admin/CreateSettlementForm'
 import SettlementActions from '@/components/admin/SettlementActions'
 
 const STATUS_LABELS: Record<string, string> = {
-  proposed:          'Proposé',
-  driver_confirmed:  'Confirmé livreur',
-  paid:              'Payé',
-  payment_received:  'Paiement reçu',
-  partner_confirmed: 'Confirmé partenaire',
+  proposed: 'Proposé', driver_confirmed: 'Confirmé livreur',
+  paid: 'Payé', payment_received: 'Paiement reçu', partner_confirmed: 'Confirmé partenaire',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -37,49 +34,34 @@ export default async function SettlementsPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-800/50">
-            <tr>
-              <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Type</th>
-              <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Livreur</th>
-              <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Période</th>
-              <th className="text-right px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Cash total</th>
-              <th className="text-right px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Payout</th>
-              <th className="text-left px-5 py-3 text-gray-500 dark:text-gray-400 font-medium">Statut</th>
-              <th className="px-5 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-            {(settlements ?? []).map((s) => (
-              <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <td className="px-5 py-3">
-                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 capitalize">{s.type}</span>
-                </td>
-                <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
-                  {s.driver_id ? driverMap[s.driver_id] ?? '—' : '—'}
-                </td>
-                <td className="px-5 py-3 text-gray-500 dark:text-gray-400 text-xs">
-                  {new Date(s.period_start).toLocaleDateString('fr-FR')} → {new Date(s.period_end).toLocaleDateString('fr-FR')}
-                </td>
-                <td className="px-5 py-3 text-right font-medium text-gray-900 dark:text-gray-100">{Number(s.total_cash).toFixed(2)}€</td>
-                <td className="px-5 py-3 text-right font-bold text-green-700 dark:text-green-400">{Number(s.payout_amount).toFixed(2)}€</td>
-                <td className="px-5 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full ${STATUS_COLORS[s.status]}`}>
+        <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          {(settlements ?? []).map((s) => (
+            <div key={s.id} className="p-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 capitalize">{s.type}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${STATUS_COLORS[s.status]}`}>
                     {STATUS_LABELS[s.status]}
                   </span>
-                </td>
-                <td className="px-5 py-3">
-                  <SettlementActions settlement={s} />
-                </td>
-              </tr>
-            ))}
-            {!settlements?.length && (
-              <tr>
-                <td colSpan={7} className="px-5 py-8 text-center text-gray-400">Aucun règlement</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                </div>
+                <span className="font-bold text-green-700 dark:text-green-400 shrink-0">{Number(s.payout_amount).toFixed(2)}€</span>
+              </div>
+              {s.driver_id && (
+                <p className="text-sm text-gray-700 dark:text-gray-300">{driverMap[s.driver_id] ?? '—'}</p>
+              )}
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {new Date(s.period_start).toLocaleDateString('fr-FR')} → {new Date(s.period_end).toLocaleDateString('fr-FR')}
+                  {' · '}cash: {Number(s.total_cash).toFixed(2)}€
+                </span>
+                <SettlementActions settlement={s} />
+              </div>
+            </div>
+          ))}
+          {!settlements?.length && (
+            <p className="px-4 py-8 text-center text-gray-400">Aucun règlement</p>
+          )}
+        </div>
       </div>
     </div>
   )
