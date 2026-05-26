@@ -50,7 +50,7 @@ export default async function QRPage() {
               >
                 Download
               </a>
-              <DeleteQRButton id={qr.id} label={qr.label} />
+              <DeleteQRButton id={qr.id} label={qr.label} isActive={qr.is_active} />
             </div>
           </div>
         ))}
