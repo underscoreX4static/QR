@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { QRCode, Partner } from '@/types'
 import CreateQRForm from '@/components/admin/CreateQRForm'
+import DeleteQRButton from '@/components/admin/DeleteQRButton'
 
 interface QRWithPartner extends QRCode { partner_name: string }
 
@@ -41,13 +42,16 @@ export default async function QRPage() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/api/qr/image?slug=${qr.slug}`} alt={`QR ${qr.label}`} className="w-24 h-24" />
             </div>
-            <a
-              href={`/api/qr/image?slug=${qr.slug}`}
-              download={`qr-${qr.slug}.png`}
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              Download
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={`/api/qr/image?slug=${qr.slug}`}
+                download={`qr-${qr.slug}.png`}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                Download
+              </a>
+              <DeleteQRButton id={qr.id} label={qr.label} />
+            </div>
           </div>
         ))}
         {qrWithPartner.length === 0 && (
