@@ -1,6 +1,6 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { supabaseAdmin } from '@/lib/supabase'
+import { useEffect, useState, useCallback } from 'react'
 import type { Settlement, Driver } from '@/types'
 import CreateSettlementForm from '@/components/admin/CreateSettlementForm'
 import SettlementActions from '@/components/admin/SettlementActions'
@@ -18,24 +18,42 @@ const STATUS_COLORS: Record<string, string> = {
   partner_confirmed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
 }
 
-export default async function SettlementsPage() {
-  const [{ data: settlements }, { data: drivers }] = await Promise.all([
-    supabaseAdmin.from('settlements').select('id,type,status,driver_id,period_start,period_end,total_cash,payout_amount,proposed_by,proposed_at,confirmed_at,payment_confirmed_at,notes').order('proposed_at', { ascending: false }).returns<Settlement[]>(),
-    supabaseAdmin.from('drivers').select('id,telegram_id,first_name,last_name,is_owner,is_active,created_at').eq('is_active', true).returns<Driver[]>(),
-  ])
+export default function SettlementsPage() {
+  const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [drivers, setDrivers] = useState<Driver[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const driverMap = Object.fromEntries((drivers ?? []).map((d) => [d.id, `${d.first_name} ${d.last_name ?? ''}`]))
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [sRes, dRes] = await Promise.all([
+      fetch('/api/settlements', { cache: 'no-store' }),
+      fetch('/api/drivers', { cache: 'no-store' }),
+    ])
+    const sJson = sRes.ok ? await sRes.json() : { settlements: [] }
+    const dJson = dRes.ok ? await dRes.json() : { drivers: [] }
+    setSettlements(sJson.settlements ?? [])
+    setDrivers((dJson.drivers ?? []).filter((d: Driver) => d.is_active))
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const driverMap = Object.fromEntries(drivers.map((d) => [d.id, `${d.first_name} ${d.last_name ?? ''}`]))
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Settlements</h2>
-        <CreateSettlementForm drivers={drivers ?? []} />
+        <CreateSettlementForm drivers={drivers} onCreated={load} />
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {(settlements ?? []).map((s) => (
+          {loading ? (
+            <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+          ) : settlements.length === 0 ? (
+            <p className="px-4 py-8 text-center text-gray-400">No settlements yet</p>
+          ) : settlements.map((s) => (
             <div key={s.id} className="p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -54,13 +72,10 @@ export default async function SettlementsPage() {
                   {new Date(s.period_start).toLocaleDateString('en-GB')} → {new Date(s.period_end).toLocaleDateString('en-GB')}
                   {' · '}cash: {Number(s.total_cash).toFixed(2)}€
                 </span>
-                <SettlementActions settlement={s} />
+                <SettlementActions settlement={s} onAdvanced={load} />
               </div>
             </div>
           ))}
-          {!settlements?.length && (
-            <p className="px-4 py-8 text-center text-gray-400">No settlements yet</p>
-          )}
         </div>
       </div>
     </div>

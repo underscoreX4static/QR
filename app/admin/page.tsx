@@ -1,23 +1,7 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { supabaseAdmin } from '@/lib/supabase'
+import { useEffect, useState } from 'react'
 import type { Order } from '@/types'
-
-async function getStats() {
-  const [orders, pendingOrders, drivers] = await Promise.all([
-    supabaseAdmin.from('orders').select('id, total, status, created_at').returns<Order[]>(),
-    supabaseAdmin.from('orders').select('id').in('status', ['pending', 'confirmed', 'preparing', 'on_the_way']),
-    supabaseAdmin.from('drivers').select('id').eq('is_active', true),
-  ])
-  const allOrders = orders.data ?? []
-  const revenue = allOrders.filter((o) => o.status === 'delivered').reduce((s, o) => s + Number(o.total), 0)
-  return { totalOrders: allOrders.length, activeOrders: pendingOrders.data?.length ?? 0, revenue, drivers: drivers.data?.length ?? 0 }
-}
-
-async function getRecentOrders() {
-  const { data } = await supabaseAdmin.from('orders').select().order('created_at', { ascending: false }).limit(8).returns<Order[]>()
-  return data ?? []
-}
 
 const STATUS_COLORS: Record<string, string> = {
   pending:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -33,8 +17,42 @@ const STATUS_LABELS: Record<string, string> = {
   on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 
-export default async function AdminPage() {
-  const [stats, recentOrders] = await Promise.all([getStats(), getRecentOrders()])
+interface Stats {
+  totalOrders: number
+  activeOrders: number
+  revenue: number
+  drivers: number
+}
+
+export default function AdminPage() {
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [recentOrders, setRecentOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function load() {
+      const [ordersRes, driversRes] = await Promise.all([
+        fetch('/api/orders', { cache: 'no-store' }),
+        fetch('/api/drivers', { cache: 'no-store' }),
+      ])
+      const ordersJson = ordersRes.ok ? await ordersRes.json() : { orders: [] }
+      const driversJson = driversRes.ok ? await driversRes.json() : { drivers: [] }
+
+      const allOrders: Order[] = ordersJson.orders ?? []
+      const activeStatuses = ['pending', 'confirmed', 'preparing', 'on_the_way']
+      const revenue = allOrders.filter((o) => o.status === 'delivered').reduce((s, o) => s + Number(o.total), 0)
+
+      setStats({
+        totalOrders: allOrders.length,
+        activeOrders: allOrders.filter((o) => activeStatuses.includes(o.status)).length,
+        revenue,
+        drivers: (driversJson.drivers ?? []).filter((d: { is_active: boolean }) => d.is_active).length,
+      })
+      setRecentOrders(allOrders.slice(0, 8))
+      setLoading(false)
+    }
+    load()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -42,10 +60,10 @@ export default async function AdminPage() {
 
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Total orders', value: stats.totalOrders, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'Active orders', value: stats.activeOrders, color: 'text-orange-600 dark:text-orange-400' },
-          { label: 'Revenue', value: `${stats.revenue.toFixed(2)}€`, color: 'text-green-600 dark:text-green-400' },
-          { label: 'Active drivers', value: stats.drivers, color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Total orders', value: loading ? '—' : stats?.totalOrders, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Active orders', value: loading ? '—' : stats?.activeOrders, color: 'text-orange-600 dark:text-orange-400' },
+          { label: 'Revenue', value: loading ? '—' : `${stats?.revenue.toFixed(2)}€`, color: 'text-green-600 dark:text-green-400' },
+          { label: 'Active drivers', value: loading ? '—' : stats?.drivers, color: 'text-purple-600 dark:text-purple-400' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{stat.label}</p>
@@ -59,7 +77,11 @@ export default async function AdminPage() {
           <h3 className="font-semibold text-gray-900 dark:text-gray-100">Recent orders</h3>
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
-          {recentOrders.map((order) => (
+          {loading ? (
+            <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+          ) : recentOrders.length === 0 ? (
+            <p className="px-4 py-8 text-center text-gray-400">No orders yet</p>
+          ) : recentOrders.map((order) => (
             <div key={order.id} className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
@@ -73,9 +95,6 @@ export default async function AdminPage() {
               <span className="font-semibold text-gray-900 dark:text-gray-100 shrink-0">{Number(order.total).toFixed(2)}€</span>
             </div>
           ))}
-          {recentOrders.length === 0 && (
-            <p className="px-4 py-8 text-center text-gray-400">No orders yet</p>
-          )}
         </div>
       </div>
     </div>

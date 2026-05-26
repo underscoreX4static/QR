@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function AddDriverForm() {
+export default function AddDriverForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +26,7 @@ export default function AddDriverForm() {
     setOpen(false)
     setForm({ telegram_id: '', first_name: '', last_name: '', is_owner: false })
     setLoading(false)
-    window.location.replace('/admin/drivers')
+    onCreated?.() ?? window.location.replace('/admin/drivers')
   }
 
   return (

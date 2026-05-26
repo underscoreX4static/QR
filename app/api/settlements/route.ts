@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { calculateDriverPayout } from '@/lib/calculations'
-import type { Settlement, Order } from '@/types'
+import { calculateExternalDriverPayout, calculateOwnerPayout, PROFIT_RATE_OWNER } from '@/lib/calculations'
+import type { Settlement, Order, OrderItem } from '@/types'
 
 // GET /api/settlements — list settlements
 export async function GET(req: NextRequest) {
@@ -59,9 +59,33 @@ export async function POST(req: NextRequest) {
 
   const totalCash = unsettledOrders.reduce((s, o) => s + Number(o.total), 0)
   const deliveryFeeTotal = unsettledOrders.reduce((s, o) => s + Number(o.delivery_fee), 0)
-  const payoutAmount = type === 'driver'
-    ? calculateDriverPayout(totalCash, deliveryFeeTotal)
-    : totalCash
+
+  // Fetch items to compute profit-based payout
+  const unsettledOrderIds = unsettledOrders.map((o) => o.id)
+  const { data: allItems } = await supabaseAdmin
+    .from('order_items')
+    .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
+    .in('order_id', unsettledOrderIds)
+    .returns<OrderItem[]>()
+
+  // Determine if driver is owner
+  let isOwnerDriver = false
+  if (driver_id) {
+    const { data: driverRow } = await supabaseAdmin.from('drivers').select('is_owner').eq('id', driver_id).single()
+    isOwnerDriver = driverRow?.is_owner ?? false
+  }
+
+  const items = allItems ?? []
+  let payoutAmount: number
+  if (type === 'driver') {
+    const breakdown = isOwnerDriver
+      ? calculateOwnerPayout(items, deliveryFeeTotal)
+      : calculateExternalDriverPayout(items, deliveryFeeTotal)
+    payoutAmount = breakdown.total
+  } else {
+    // Partner settlement: full cash collected (they invoice separately)
+    payoutAmount = totalCash
+  }
 
   // Create settlement
   const { data: settlement, error: settlementError } = await supabaseAdmin

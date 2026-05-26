@@ -69,7 +69,7 @@ export default async function ProductsPage() {
                       </div>
                     )}
                     <div className="flex items-center justify-between mt-0.5">
-                      <span className={`text-xs ${product.variants[0]?.stock_qty <= 5 ? 'text-red-500' : 'text-gray-400'}`}>
+                      <span className={`text-xs ${product.variants.some((v) => v.stock_qty <= 5) ? 'text-red-500' : 'text-gray-400'}`}>
                         stock: {product.variants.reduce((s, v) => s + v.stock_qty, 0)}
                       </span>
                       <span className={`text-xs px-1.5 py-0.5 rounded-full ${product.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>

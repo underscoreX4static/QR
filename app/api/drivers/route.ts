@@ -5,7 +5,7 @@ import type { Driver } from '@/types'
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('drivers')
-    .select()
+    .select('id,telegram_id,first_name,last_name,is_owner,is_active,created_at')
     .order('created_at', { ascending: false })
     .returns<Driver[]>()
 

@@ -10,23 +10,47 @@ export function calculateOrderProfit(items: OrderItem[]): number {
   }, 0)
 }
 
-export function calculateDriverPayout(
-  totalCash: number,
-  deliveryFeeTotal: number,
-  platformFeeRate: number = 0.1
-): number {
-  const platformFee = totalCash * platformFeeRate
-  return totalCash - platformFee + deliveryFeeTotal
+// Delivery fee split: external driver gets 2€, remaining split equally between owners
+export const DELIVERY_FEE_DRIVER_SHARE = 2
+
+// Profit split rates
+export const PROFIT_RATE_EXTERNAL_DRIVER = 0.25 // 25% of product profit
+export const PROFIT_RATE_OWNER = 0.50            // 50% of product profit
+
+export interface PayoutBreakdown {
+  productProfit: number      // total sell - cost
+  deliveryFeeShare: number   // driver's cut of delivery fee
+  profitShare: number        // driver's cut of product profit
+  total: number
 }
 
-export function calculatePartnerPayout(
-  items: OrderItem[],
-  partnerMarginRate: number = 0.7
-): number {
-  const subtotal = calculateOrderSubtotal(items)
-  return subtotal * partnerMarginRate
+// Payout for an external driver on a set of orders
+export function calculateExternalDriverPayout(items: OrderItem[], deliveryFeeTotal: number): PayoutBreakdown {
+  const productProfit = calculateOrderProfit(items)
+  const deliveryFeeShare = DELIVERY_FEE_DRIVER_SHARE
+  const profitShare = productProfit * PROFIT_RATE_EXTERNAL_DRIVER
+  return {
+    productProfit,
+    deliveryFeeShare,
+    profitShare,
+    total: deliveryFeeShare + profitShare,
+  }
 }
 
-export function formatCurrency(amount: number, currency: string = 'USD'): string {
+// Payout for the owner (when they deliver themselves they get their owner share + no external driver cut)
+export function calculateOwnerPayout(items: OrderItem[], deliveryFeeTotal: number): PayoutBreakdown {
+  const productProfit = calculateOrderProfit(items)
+  // Owner gets their 50% + the external driver's 25% since they handled delivery too
+  const profitShare = productProfit * (PROFIT_RATE_OWNER + PROFIT_RATE_EXTERNAL_DRIVER)
+  const deliveryFeeShare = deliveryFeeTotal - 0 // owner keeps full delivery fee when self-delivering
+  return {
+    productProfit,
+    deliveryFeeShare,
+    profitShare,
+    total: deliveryFeeShare + profitShare,
+  }
+}
+
+export function formatCurrency(amount: number, currency: string = 'EUR'): string {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount)
 }

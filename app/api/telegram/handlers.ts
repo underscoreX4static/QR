@@ -364,8 +364,8 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const { data: order } = await supabaseAdmin
       .from('orders').select('status').eq('id', orderId).single()
 
-    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
-      await sendMessage(chatId, '⚠️ Cannot cancel — order may already be on the way.')
+    if (!order || !['pending', 'confirmed', 'preparing', 'on_the_way'].includes(order.status)) {
+      await sendMessage(chatId, '⚠️ Cannot cancel — order has already been delivered.')
       return
     }
 
@@ -425,12 +425,12 @@ async function handleCancelReason(chatId: number, telegramId: string, driver: Dr
     .from('orders')
     .update({ status: 'cancelled' })
     .eq('id', orderId)
-    .in('status', ['pending', 'confirmed', 'preparing'])
+    .in('status', ['pending', 'confirmed', 'preparing', 'on_the_way'])
     .select('id,user_id')
     .single()
 
   if (error || !updated) {
-    await sendMessage(chatId, '⚠️ Could not cancel — order may already be on the way.')
+    await sendMessage(chatId, '⚠️ Could not cancel — order has already been delivered.')
     return
   }
 

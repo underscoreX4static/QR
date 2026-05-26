@@ -18,9 +18,9 @@ const NEXT_LABEL: Partial<Record<SettlementStatus, string>> = {
   payment_received:  'Confirm partner',
 }
 
-interface Props { settlement: Settlement }
+interface Props { settlement: Settlement; onAdvanced?: () => void }
 
-export default function SettlementActions({ settlement }: Props) {
+export default function SettlementActions({ settlement, onAdvanced }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -41,8 +41,8 @@ export default function SettlementActions({ settlement }: Props) {
       setLoading(false)
       return
     }
-    window.location.reload()
     setLoading(false)
+    onAdvanced?.() ?? window.location.reload()
   }
 
   return (

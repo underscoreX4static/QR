@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function AddPartnerForm() {
+export default function AddPartnerForm({ onCreated }: { onCreated?: () => void }) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +26,7 @@ export default function AddPartnerForm() {
     setOpen(false)
     setForm({ name: '', address: '', contact_name: '', contact_phone: '' })
     setLoading(false)
-    window.location.replace('/admin/partners')
+    onCreated?.() ?? window.location.replace('/admin/partners')
   }
 
   return (

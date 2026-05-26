@@ -3,9 +3,9 @@
 import { useState } from 'react'
 import type { Driver } from '@/types'
 
-interface Props { drivers: Driver[] }
+interface Props { drivers: Driver[]; onCreated?: () => void }
 
-export default function CreateSettlementForm({ drivers }: Props) {
+export default function CreateSettlementForm({ drivers, onCreated }: Props) {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -34,7 +34,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
     }
     setOpen(false)
     setLoading(false)
-    window.location.replace('/admin/settlements')
+    onCreated?.() ?? window.location.replace('/admin/settlements')
   }
 
   return (
