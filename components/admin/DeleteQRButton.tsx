@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export default function DeleteQRButton({ id, label, isActive }: { id: string; label: string; isActive: boolean }) {
+export default function DeleteQRButton({ id, label, isActive, badgeOnly }: { id: string; label: string; isActive: boolean; badgeOnly?: boolean }) {
   const [loading, setLoading] = useState(false)
   const [active, setActive] = useState(isActive)
 
@@ -49,6 +49,14 @@ export default function DeleteQRButton({ id, label, isActive }: { id: string; la
     else alert('Failed to reactivate QR code')
     setLoading(false)
   }
+
+  const badge = (
+    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
+      {active ? 'Active' : 'Inactive'}
+    </span>
+  )
+
+  if (badgeOnly) return badge
 
   return (
     <div className="flex items-center gap-1.5">

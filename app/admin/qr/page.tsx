@@ -34,9 +34,7 @@ export default async function QRPage() {
                 <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{qr.label}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{qr.partner_name}</p>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${qr.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                {qr.is_active ? 'Active' : 'Inactive'}
-              </span>
+              <DeleteQRButton id={qr.id} label={qr.label} isActive={qr.is_active} badgeOnly />
             </div>
             <div className="bg-white rounded-xl p-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
