@@ -14,7 +14,7 @@ const VALID_TRANSITIONS: Record<SettlementStatus, SettlementStatus[]> = {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data: settlement } = await supabaseAdmin
     .from('settlements')
-    .select()
+    .select('id,type,status,driver_id,period_start,period_end,total_cash,payout_amount,proposed_by,proposed_at,confirmed_at,payment_confirmed_at,notes')
     .eq('id', params.id)
     .single<Settlement>()
 
@@ -27,7 +27,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const orderIds = (links ?? []).map((l) => l.order_id)
   const { data: orders } = orderIds.length
-    ? await supabaseAdmin.from('orders').select().in('id', orderIds)
+    ? await supabaseAdmin.from('orders').select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at').in('id', orderIds)
     : { data: [] }
 
   return NextResponse.json({ settlement, orders })
@@ -64,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .from('settlements')
     .update(updates)
     .eq('id', params.id)
-    .select()
+    .select('id,type,status,driver_id,period_start,period_end,total_cash,payout_amount,proposed_by,proposed_at,confirmed_at,payment_confirmed_at,notes')
     .single<Settlement>()
 
   if (error || !updated) {

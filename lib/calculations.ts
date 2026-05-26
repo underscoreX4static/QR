@@ -42,7 +42,7 @@ export function calculateOwnerPayout(items: OrderItem[], deliveryFeeTotal: numbe
   const productProfit = calculateOrderProfit(items)
   // Owner gets their 50% + the external driver's 25% since they handled delivery too
   const profitShare = productProfit * (PROFIT_RATE_OWNER + PROFIT_RATE_EXTERNAL_DRIVER)
-  const deliveryFeeShare = deliveryFeeTotal - 0 // owner keeps full delivery fee when self-delivering
+  const deliveryFeeShare = deliveryFeeTotal
   return {
     productProfit,
     deliveryFeeShare,

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   if (driverId) query = query.eq('driver_id', driverId)
   if (status) query = query.in('status', status.split(','))
 
-  const { data, error } = await query.returns<Order[]>()
+  const { data, error } = await query.limit(200).returns<Order[]>()
   if (error) return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })
 
   return NextResponse.json({ orders: data })

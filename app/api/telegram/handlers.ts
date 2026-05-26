@@ -351,6 +351,11 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       )
     )
 
+    // Record delegation so admin UI hides the Delegate button
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId, status: order.status, changed_by: 'delegated',
+    })
+
     await sendMessage(chatId, `🛵 Order #${shortId} sent to ${externalDrivers.length} driver${externalDrivers.length > 1 ? 's' : ''}.`)
     return
   }
@@ -383,7 +388,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
   // ── take_order (external driver) ───────────────────────────────────────────
   if (data.startsWith('take_order:')) {
     const orderId = data.split(':')[1]
-    if (!orderId || orderId.length > 36 || !driver) return
+    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
 
     const { data: takenOrder, error } = await supabaseAdmin
       .from('orders')
@@ -457,7 +462,8 @@ async function getOrCreateUser(telegramId: string, from: TelegramBot.User): Prom
       { telegram_id: telegramId, first_name: from.first_name, last_name: from.last_name ?? null },
       { onConflict: 'telegram_id', ignoreDuplicates: false }
     )
-    .select().single<User>()
+    .select('id,telegram_id,first_name,last_name,phone,default_address,first_qr_source,created_at')
+    .single<User>()
   return data!
 }
 
