@@ -22,11 +22,14 @@ interface Props { order: Order }
 export default function OrderActions({ order }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status)
 
-  const next = NEXT_STATUS[order.status]
+  const next = NEXT_STATUS[currentStatus]
+  if (!next && currentStatus === 'cancelled') return <span className="text-xs text-red-400">Cancelled</span>
   if (!next) return null
 
   const advance = async () => {
+    if (!next) return
     setLoading(true)
     setError('')
     const res = await fetch(`/api/orders/${order.id}`, {
@@ -40,7 +43,7 @@ export default function OrderActions({ order }: Props) {
       setLoading(false)
       return
     }
-    window.location.reload()
+    setCurrentStatus(next)
     setLoading(false)
   }
 
@@ -59,7 +62,7 @@ export default function OrderActions({ order }: Props) {
       setLoading(false)
       return
     }
-    window.location.reload()
+    setCurrentStatus('cancelled')
     setLoading(false)
   }
 
@@ -72,9 +75,9 @@ export default function OrderActions({ order }: Props) {
           disabled={loading}
           className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
         >
-          {NEXT_LABEL[order.status]}
+          {NEXT_LABEL[currentStatus]}
         </button>
-        {order.status !== 'cancelled' && order.status !== 'on_the_way' && order.status !== 'delivered' && (
+        {currentStatus !== 'cancelled' && currentStatus !== 'on_the_way' && currentStatus !== 'delivered' && (
           <button
             onClick={cancel}
             disabled={loading}
