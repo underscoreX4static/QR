@@ -25,7 +25,7 @@ export interface PayoutBreakdown {
 }
 
 // Payout for an external driver on a set of orders
-export function calculateExternalDriverPayout(items: OrderItem[], _deliveryFeeTotal: number): PayoutBreakdown {
+export function calculateExternalDriverPayout(items: OrderItem[]): PayoutBreakdown {
   const productProfit = calculateOrderProfit(items)
   const deliveryFeeShare = DELIVERY_FEE_DRIVER_SHARE
   const profitShare = productProfit * PROFIT_RATE_EXTERNAL_DRIVER

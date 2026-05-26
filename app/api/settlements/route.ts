@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   if (type === 'driver') {
     const breakdown = isOwnerDriver
       ? calculateOwnerPayout(items, deliveryFeeTotal)
-      : calculateExternalDriverPayout(items, deliveryFeeTotal)
+      : calculateExternalDriverPayout(items)
     payoutAmount = breakdown.total
   } else {
     // Partner settlement: full cash collected (they invoice separately)
