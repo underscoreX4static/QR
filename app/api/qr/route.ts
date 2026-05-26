@@ -56,6 +56,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Partner not found' }, { status: 404 })
   }
 
+  // Deactivate any existing active QR for this partner (only one active at a time)
+  await supabaseAdmin
+    .from('qr_codes')
+    .update({ is_active: false })
+    .eq('partner_id', partner_id)
+    .eq('is_active', true)
+
   const slug = generateSlug(label)
 
   const { data: qrCode, error } = await supabaseAdmin
