@@ -88,7 +88,9 @@ function OrderApp() {
         }
 
         const { qrCode, partner } = await qrRes.json()
-        const { catalogue } = await catRes.json()
+        const catJson = await catRes.json()
+        console.log('catalogue API response:', JSON.stringify(catJson).slice(0, 500))
+        const { catalogue } = catJson
 
         if (cancelled) return
 
