@@ -80,6 +80,12 @@ function OrderApp() {
           return
         }
 
+        if (!catRes.ok) {
+          setError('Failed to load catalogue. Please try again.')
+          setView('error')
+          return
+        }
+
         const { qrCode, partner } = await qrRes.json()
         const { catalogue } = await catRes.json()
 
