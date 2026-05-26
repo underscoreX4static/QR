@@ -59,7 +59,7 @@ export default function CreateQRForm({ partners }: Props) {
     setOpen(false)
     setForm({ partner_id: '', label: '' })
     setLoading(false)
-    window.location.href = '/admin/qr?t=' + Date.now()
+    window.location.replace('/admin/qr')
   }
 
   return (

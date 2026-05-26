@@ -34,7 +34,7 @@ export default function CreateSettlementForm({ drivers }: Props) {
     }
     setOpen(false)
     setLoading(false)
-    window.location.href = '/admin/settlements'
+    window.location.replace('/admin/settlements')
   }
 
   return (

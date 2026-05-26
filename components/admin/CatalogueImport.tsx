@@ -205,7 +205,7 @@ export default function CatalogueImport() {
               )}
               {step === 'done' && (
                 <button
-                  onClick={() => { close(); window.location.href = '/admin/products' }}
+                  onClick={() => { close(); window.location.replace('/admin/products') }}
                   className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
                 >
                   View products

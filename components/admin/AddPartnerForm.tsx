@@ -26,7 +26,7 @@ export default function AddPartnerForm() {
     setOpen(false)
     setForm({ name: '', address: '', contact_name: '', contact_phone: '' })
     setLoading(false)
-    window.location.href = '/admin/partners'
+    window.location.replace('/admin/partners')
   }
 
   return (
