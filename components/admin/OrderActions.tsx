@@ -45,6 +45,7 @@ export default function OrderActions({ order }: Props) {
     }
     setCurrentStatus(next)
     setLoading(false)
+    window.location.replace(`/admin/orders?t=${Date.now()}`)
   }
 
   const cancel = async () => {
@@ -64,6 +65,7 @@ export default function OrderActions({ order }: Props) {
     }
     setCurrentStatus('cancelled')
     setLoading(false)
+    window.location.replace(`/admin/orders?t=${Date.now()}`)
   }
 
   return (

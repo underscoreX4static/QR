@@ -91,7 +91,7 @@ export default async function OrdersPage() {
                 <span className="text-xs text-gray-400 dark:text-gray-500">
                   {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <OrderActions order={order} />
+                <OrderActions key={`${order.id}-${order.status}`} order={order} />
               </div>
             </div>
           ))}
