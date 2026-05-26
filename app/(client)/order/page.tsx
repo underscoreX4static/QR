@@ -108,7 +108,7 @@ function OrderApp() {
     return () => { cancelled = true }
   }, [qrSlug])
 
-  const handleOrder = useCallback(async (address: string, notes: string) => {
+  const handleOrder = useCallback(async (address: string, notes: string, scheduledAt?: string) => {
     if (!data || cartCount(cart) === 0) return
 
     // Get Telegram user from Mini App SDK
@@ -120,8 +120,6 @@ function OrderApp() {
 
     setIsOrdering(true)
     try {
-      // Resolve our internal user_id from telegram_id via orders API
-      // The backend will match telegram_id → user.id
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -130,6 +128,7 @@ function OrderApp() {
           qr_code_id: data.qrCode.id,
           delivery_address: address,
           notes: notes || null,
+          scheduled_at: scheduledAt ?? null,
           items: cart.items.map((i) => ({
             variant_id: i.variantId,
             quantity: i.quantity,

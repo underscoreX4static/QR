@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 // POST /api/orders — create a new order
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { user_id, telegram_id, qr_code_id, delivery_address, notes, items } = body
+  const { user_id, telegram_id, qr_code_id, delivery_address, notes, items, scheduled_at } = body
 
   if (!qr_code_id || !delivery_address || !items?.length || (!user_id && !telegram_id)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
       delivery_fee: deliveryFee,
       total,
       status: 'pending',
+      scheduled_at: scheduled_at ?? null,
     })
     .select()
     .single<Order>()
@@ -128,7 +129,10 @@ export async function POST(req: NextRequest) {
     .returns<Pick<Driver, 'telegram_id'>[]>()
 
   const shortId = order.id.slice(-6).toUpperCase()
-  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💶 ${Number(order.total).toFixed(2)}€\n\nGo to admin to confirm.`
+  const scheduleNote = scheduled_at
+    ? `\n🕐 Scheduled: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
+    : '\n⚡ ASAP'
+  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💵 $${Number(order.total).toFixed(2)}${scheduleNote}\n\nGo to admin to confirm.`
   await Promise.allSettled(
     (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
   )
