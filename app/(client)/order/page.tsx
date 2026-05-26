@@ -22,6 +22,8 @@ interface CatalogueCategory {
     name: string
     description: string | null
     image_url: string | null
+    brand: string | null
+    subcategory: string | null
     category_id: string
     is_active: boolean
     variants: Array<{

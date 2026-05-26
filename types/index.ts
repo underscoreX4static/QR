@@ -69,6 +69,8 @@ export interface Product {
   name: string
   description: string | null
   image_url: string | null
+  brand: string | null
+  subcategory: string | null
   is_active: boolean
 }
 

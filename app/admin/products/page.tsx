@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Category, Product, Variant } from '@/types'
 import AddProductForm from '@/components/admin/AddProductForm'
+import CatalogueImport from '@/components/admin/CatalogueImport'
 
 interface ProductWithVariants extends Product { variants: Variant[] }
 interface CategoryWithProducts extends Category { products: ProductWithVariants[] }
@@ -23,9 +24,12 @@ export default async function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Produits</h2>
-        <AddProductForm categories={categories ?? []} />
+        <div className="flex gap-2">
+          <CatalogueImport />
+          <AddProductForm categories={categories ?? []} />
+        </div>
       </div>
 
       {catalogue.map((cat) => (
