@@ -29,7 +29,7 @@ export default function AddProductForm({ categories }: Props) {
     setOpen(false)
     setForm({ category_id: '', name: '', description: '' })
     setLoading(false)
-    window.location.reload()
+    window.location.href = '/admin/products'
   }
 
   return (

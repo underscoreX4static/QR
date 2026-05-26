@@ -73,13 +73,6 @@ export default function Sidebar() {
             </Link>
           )
         })}
-        <button
-          onClick={toggle}
-          className="flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-medium text-gray-400 dark:text-gray-500"
-        >
-          <span className="text-lg leading-none">{theme === 'dark' ? '☀️' : '🌙'}</span>
-          <span>Thème</span>
-        </button>
       </nav>
     </>
   )
