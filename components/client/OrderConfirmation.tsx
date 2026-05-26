@@ -14,7 +14,7 @@ export default function OrderConfirmation({ order, onClose }: Props) {
     <div className="flex flex-col items-center justify-center min-h-screen px-6 py-10 text-center bg-gray-50">
       <div className="text-6xl mb-4">🎉</div>
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Order placed!</h1>
-      <p className="text-gray-400 text-sm mb-6">#{order.id.slice(-6).toUpperCase()} · We'll notify you on Telegram</p>
+      <p className="text-gray-400 text-sm mb-6">#{order.id.slice(-6).toUpperCase()} · We&apos;ll notify you on Telegram</p>
 
       <div className="bg-white rounded-2xl p-5 w-full shadow-sm mb-4 text-left space-y-3">
         <div className="flex justify-between text-sm">
@@ -46,6 +46,7 @@ export default function OrderConfirmation({ order, onClose }: Props) {
           <p className="text-amber-800 text-sm">
             Please have <span className="font-bold">${Number(order.total).toFixed(2)} cash</span> ready for the driver. We do not accept card payments.
           </p>
+
         </div>
       </div>
 
