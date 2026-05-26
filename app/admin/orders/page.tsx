@@ -238,7 +238,7 @@ export default function OrdersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Orders</h2>
-        <button onClick={load} disabled={loading} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">
+        <button onClick={() => load()} disabled={loading} className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50">
           {loading ? 'Loading...' : 'Refresh'}
         </button>
       </div>
