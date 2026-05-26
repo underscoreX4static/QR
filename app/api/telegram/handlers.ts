@@ -29,8 +29,8 @@ async function handleMessage(msg: TelegramBot.Message) {
     return
   }
 
-  await getOrCreateUser(telegramId, msg.from!)
-  await sendMessage(chatId, 'Scan a QR code to place an order.')
+  const user = await getOrCreateUser(telegramId, msg.from!)
+  await sendOrderButton(chatId, user)
 }
 
 async function handleStart(
@@ -90,7 +90,7 @@ async function handleStart(
     }
   }
 
-  await sendMessage(chatId, `Hello ${user.first_name} 👋\nScan a QR code to get started.`)
+  await sendOrderButton(chatId, user)
 }
 
 async function handleDriverMessage(chatId: number, driver: Driver, text: string) {
@@ -255,4 +255,38 @@ function driverKeyboard(): TelegramBot.ReplyKeyboardMarkup {
     keyboard: [[{ text: '/orders' }]],
     resize_keyboard: true,
   }
+}
+
+async function sendOrderButton(chatId: number, user: User) {
+  // Find the last active QR code this user scanned
+  const { data: lastScan } = await supabaseAdmin
+    .from('qr_scans')
+    .select('qr_code_id')
+    .eq('user_id', user.id)
+    .order('scanned_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (lastScan?.qr_code_id) {
+    const { data: qrCode } = await supabaseAdmin
+      .from('qr_codes')
+      .select('slug')
+      .eq('id', lastScan.qr_code_id)
+      .eq('is_active', true)
+      .single<Pick<QRCode, 'slug'>>()
+
+    if (qrCode) {
+      const appUrl = `${process.env.NEXT_PUBLIC_APP_URL}/order?qr=${qrCode.slug}`
+      await sendMessage(chatId, `👋 Tap the button to order again`, {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '🛒 Order', web_app: { url: appUrl } },
+          ]],
+        },
+      })
+      return
+    }
+  }
+
+  await sendMessage(chatId, `${user.first_name} 👋\nScan a QR code to place an order.`)
 }
