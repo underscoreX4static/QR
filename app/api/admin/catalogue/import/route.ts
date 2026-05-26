@@ -28,14 +28,14 @@ export async function POST(req: NextRequest) {
 
     // ── Validate required fields ──────────────────────────────────────────────
     if (!row.category_name?.trim() || !row.product_name?.trim() || !row.variant_size?.trim()) {
-      summary.errors.push(`Ligne ${lineNum}: category_name, product_name et variant_size sont requis`)
+      summary.errors.push(`Row ${lineNum}: category_name, product_name and variant_size are required`)
       continue
     }
     const priceSell = parseFloat(row.price_sell)
     const priceCost = parseFloat(row.price_cost)
     const stockQty = parseInt(row.stock_qty, 10)
     if (isNaN(priceSell) || isNaN(priceCost) || isNaN(stockQty)) {
-      summary.errors.push(`Ligne ${lineNum}: price_sell, price_cost et stock_qty doivent être des nombres`)
+      summary.errors.push(`Row ${lineNum}: price_sell, price_cost and stock_qty must be numbers`)
       continue
     }
     const isActive = row.is_active?.trim().toLowerCase() !== 'false' && row.is_active?.trim() !== '0'
