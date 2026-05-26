@@ -26,7 +26,7 @@ export default function AddDriverForm({ onCreated }: { onCreated?: () => void })
     setOpen(false)
     setForm({ telegram_id: '', first_name: '', last_name: '', is_owner: false })
     setLoading(false)
-    onCreated?.() ?? window.location.replace('/admin/drivers')
+    if (onCreated) onCreated(); else window.location.replace('/admin/drivers')
   }
 
   return (

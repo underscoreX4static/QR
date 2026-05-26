@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { calculateExternalDriverPayout, calculateOwnerPayout, PROFIT_RATE_OWNER } from '@/lib/calculations'
+import { calculateExternalDriverPayout, calculateOwnerPayout } from '@/lib/calculations'
 import type { Settlement, Order, OrderItem } from '@/types'
 
 // GET /api/settlements — list settlements

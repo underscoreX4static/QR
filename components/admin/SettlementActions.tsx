@@ -42,7 +42,7 @@ export default function SettlementActions({ settlement, onAdvanced }: Props) {
       return
     }
     setLoading(false)
-    onAdvanced?.() ?? window.location.reload()
+    if (onAdvanced) onAdvanced(); else window.location.reload()
   }
 
   return (

@@ -26,7 +26,7 @@ export default function AddPartnerForm({ onCreated }: { onCreated?: () => void }
     setOpen(false)
     setForm({ name: '', address: '', contact_name: '', contact_phone: '' })
     setLoading(false)
-    onCreated?.() ?? window.location.replace('/admin/partners')
+    if (onCreated) onCreated(); else window.location.replace('/admin/partners')
   }
 
   return (

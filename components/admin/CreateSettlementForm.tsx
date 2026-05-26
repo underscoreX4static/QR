@@ -34,7 +34,7 @@ export default function CreateSettlementForm({ drivers, onCreated }: Props) {
     }
     setOpen(false)
     setLoading(false)
-    onCreated?.() ?? window.location.replace('/admin/settlements')
+    if (onCreated) onCreated(); else window.location.replace('/admin/settlements')
   }
 
   return (
