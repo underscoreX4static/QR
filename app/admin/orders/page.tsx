@@ -3,13 +3,22 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Order, OrderItem, Variant, OrderStatus } from '@/types'
 
+interface StatusHistoryRow {
+  order_id: string
+  status: string
+  changed_by: string
+  changed_at: string
+}
+
 interface OrderItemWithVariant extends OrderItem {
   variant: Variant | null
   productName: string
 }
 
 interface OrderWithItems extends Order {
+  driver_name: string | null
   items: OrderItemWithVariant[]
+  history: StatusHistoryRow[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -42,11 +51,14 @@ const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
 
 const ACTIVE_STATUSES: OrderStatus[] = ['pending', 'confirmed', 'preparing', 'on_the_way']
 
+function fmt(iso: string) {
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  })
+}
+
 function OrderCard({
-  order,
-  busy,
-  err,
-  onPatch,
+  order, busy, err, onPatch,
 }: {
   order: OrderWithItems
   busy: boolean
@@ -54,8 +66,10 @@ function OrderCard({
   onPatch: (id: string, status: OrderStatus) => void
 }) {
   const next = NEXT_STATUS[order.status]
+
   return (
-    <div className="p-4 space-y-2">
+    <div className="p-4 space-y-3">
+      {/* Header row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="font-mono text-xs text-gray-400 shrink-0">#{order.id.slice(-6).toUpperCase()}</span>
@@ -66,8 +80,10 @@ function OrderCard({
         <span className="font-bold text-gray-900 dark:text-gray-100 shrink-0">{Number(order.total).toFixed(2)}€</span>
       </div>
 
+      {/* Address */}
       <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{order.delivery_address}</p>
 
+      {/* Items */}
       {order.items?.length > 0 && (
         <div className="bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2 space-y-1">
           {order.items.map((item) => (
@@ -81,14 +97,41 @@ function OrderCard({
 
       {order.notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic">{order.notes}</p>}
 
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-400 dark:text-gray-500">
-          {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
-        </span>
+      {/* Status timeline */}
+      {order.history?.length > 0 && (
+        <div className="space-y-0.5">
+          {order.history.map((h, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_COLORS[h.status]?.split(' ')[0] ?? 'bg-gray-300'}`} />
+              <span className="capitalize">{STATUS_LABELS[h.status] ?? h.status}</span>
+              <span className="text-gray-300 dark:text-gray-600">·</span>
+              <span>{fmt(h.changed_at)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer: driver + actions */}
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+          <span>{fmt(order.created_at)}</span>
+          {order.driver_name ? (
+            <>
+              <span className="text-gray-300 dark:text-gray-600">·</span>
+              <span>🛵 {order.driver_name}</span>
+            </>
+          ) : order.status === 'delivered' ? (
+            <>
+              <span className="text-gray-300 dark:text-gray-600">·</span>
+              <span className="text-gray-400">No driver assigned</span>
+            </>
+          ) : null}
+        </div>
+
         <div className="flex flex-col items-end gap-1">
           {err && <p className="text-xs text-red-500">{err}</p>}
           {order.status === 'cancelled' && <span className="text-xs text-red-400">Cancelled</span>}
-          {order.status === 'delivered' && <span className="text-xs text-green-500">Delivered</span>}
+          {order.status === 'delivered' && <span className="text-xs text-green-500">Delivered ✓</span>}
           {next && (
             <div className="flex items-center gap-2">
               <button
@@ -148,7 +191,15 @@ export default function OrdersPage() {
       setActionLoading(null)
       return
     }
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
+    // Update status + append to history locally
+    setOrders((prev) => prev.map((o) => o.id === orderId ? {
+      ...o,
+      status,
+      history: [
+        ...o.history,
+        { order_id: orderId, status, changed_by: 'admin', changed_at: new Date().toISOString() },
+      ],
+    } : o))
     setActionLoading(null)
   }
 
@@ -166,8 +217,11 @@ export default function OrdersPage() {
 
       {/* Active orders */}
       <div>
-        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-          In progress {active.length > 0 && <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full text-xs">{active.length}</span>}
+        <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-2">
+          In progress
+          {active.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full text-xs">{active.length}</span>
+          )}
         </h3>
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -195,8 +249,10 @@ export default function OrdersPage() {
           className="flex items-center gap-2 text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
         >
           History
-          {history.length > 0 && <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 rounded-full text-xs">{history.length}</span>}
-          <span className="text-gray-400 text-xs">{showHistory ? '▲' : '▼'}</span>
+          {history.length > 0 && (
+            <span className="px-1.5 py-0.5 bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 rounded-full text-xs">{history.length}</span>
+          )}
+          <span className="text-gray-400 text-xs normal-case font-normal">{showHistory ? '▲ hide' : '▼ show'}</span>
         </button>
         {showHistory && (
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">

@@ -1,24 +1,48 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { Order, OrderItem, Variant, Product } from '@/types'
+import type { Order, OrderItem, Variant, Product, Driver } from '@/types'
+
+interface StatusHistoryRow {
+  order_id: string
+  status: string
+  changed_by: string
+  changed_at: string
+}
 
 export async function GET() {
   const { data: orders } = await supabaseAdmin
     .from('orders')
     .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .order('created_at', { ascending: false })
-    .limit(50)
+    .limit(100)
     .returns<Order[]>()
 
   if (!orders?.length) return NextResponse.json({ orders: [] })
 
   const orderIds = orders.map((o) => o.id)
 
-  const { data: allItems } = await supabaseAdmin
-    .from('order_items')
-    .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
-    .in('order_id', orderIds)
-    .returns<OrderItem[]>()
+  // Fetch all in parallel
+  const [
+    { data: allItems },
+    { data: allHistory },
+    { data: allDrivers },
+  ] = await Promise.all([
+    supabaseAdmin
+      .from('order_items')
+      .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
+      .in('order_id', orderIds)
+      .returns<OrderItem[]>(),
+    supabaseAdmin
+      .from('order_status_history')
+      .select('order_id,status,changed_by,changed_at')
+      .in('order_id', orderIds)
+      .order('changed_at', { ascending: true })
+      .returns<StatusHistoryRow[]>(),
+    supabaseAdmin
+      .from('drivers')
+      .select('id,first_name,last_name')
+      .returns<Pick<Driver, 'id' | 'first_name' | 'last_name'>>(),
+  ])
 
   const variantIds = Array.from(new Set((allItems ?? []).map((i) => i.variant_id)))
   const { data: allVariants } = variantIds.length
@@ -32,19 +56,23 @@ export async function GET() {
 
   const variantMap = Object.fromEntries((allVariants ?? []).map((v) => [v.id, v]))
   const productMap = Object.fromEntries((allProducts ?? []).map((p) => [p.id, p.name]))
+  const driverMap = Object.fromEntries(
+    ((allDrivers as unknown as Pick<Driver, 'id' | 'first_name' | 'last_name'>[]) ?? []).map((d) => [
+      d.id,
+      [d.first_name, d.last_name].filter(Boolean).join(' '),
+    ])
+  )
 
   const ordersWithItems = orders.map((order) => ({
     ...order,
+    driver_name: order.driver_id ? (driverMap[order.driver_id] ?? 'Unknown driver') : null,
     items: (allItems ?? [])
       .filter((i) => i.order_id === order.id)
       .map((item) => {
         const variant = variantMap[item.variant_id] ?? null
-        return {
-          ...item,
-          variant,
-          productName: variant ? (productMap[variant.product_id] ?? '—') : '—',
-        }
+        return { ...item, variant, productName: variant ? (productMap[variant.product_id] ?? '—') : '—' }
       }),
+    history: (allHistory ?? []).filter((h) => h.order_id === order.id),
   }))
 
   return NextResponse.json({ orders: ordersWithItems })
