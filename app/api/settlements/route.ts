@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   // Fetch delivered orders in the period not yet settled
   let ordersQuery = supabaseAdmin
     .from('orders')
-    .select()
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .eq('status', 'delivered')
     .gte('created_at', period_start)
     .lte('created_at', period_end)
