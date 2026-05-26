@@ -72,5 +72,12 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     )
   )
 
+  // Record delegation so admin UI can hide the Delegate button
+  await supabaseAdmin.from('order_status_history').insert({
+    order_id: params.id,
+    status: order.status,
+    changed_by: 'delegated',
+  })
+
   return NextResponse.json({ ok: true, notified: drivers.length })
 }

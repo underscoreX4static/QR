@@ -142,7 +142,7 @@ function OrderCard({
               >
                 {busy ? '...' : NEXT_LABEL[order.status]}
               </button>
-              {['confirmed', 'preparing'].includes(order.status) && !order.driver_id && (
+              {['confirmed', 'preparing'].includes(order.status) && !order.driver_id && !order.history?.some((h) => h.changed_by === 'delegated') && (
                 <button
                   onClick={() => onDelegate(order.id)}
                   disabled={busy}
@@ -150,6 +150,9 @@ function OrderCard({
                 >
                   Delegate 🛵
                 </button>
+              )}
+              {order.history?.some((h) => h.changed_by === 'delegated') && !order.driver_id && (
+                <span className="text-xs text-orange-500 dark:text-orange-400">Sent to drivers ✓</span>
               )}
               <button
                 onClick={() => {
@@ -175,7 +178,6 @@ export default function OrdersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showHistory, setShowHistory] = useState(false)
-  const [delegated, setDelegated] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -223,7 +225,6 @@ export default function OrdersPage() {
     if (!res.ok) {
       setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to delegate' }))
     } else {
-      setDelegated((d) => ({ ...d, [orderId]: true }))
       await load(true)
     }
     setActionLoading(null)
@@ -258,9 +259,9 @@ export default function OrdersPage() {
             ) : active.map((order) => (
               <OrderCard
                 key={order.id}
-                order={{ ...order, driver_id: delegated[order.id] ? 'delegated' : order.driver_id }}
+                order={order}
                 busy={actionLoading === order.id}
-                err={errors[order.id] ? errors[order.id] : delegated[order.id] ? '✅ Delegated to external driver' : ''}
+                err={errors[order.id] ?? ''}
                 onPatch={patch}
                 onDelegate={delegate}
               />

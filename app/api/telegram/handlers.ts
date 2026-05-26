@@ -387,7 +387,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     const { data: takenOrder, error } = await supabaseAdmin
       .from('orders')
-      .update({ driver_id: driver.id, status: 'on_the_way' })
+      .update({ driver_id: driver.id, status: 'preparing' })
       .eq('id', orderId)
       .in('status', ['confirmed', 'preparing'])
       .select('id,user_id,delivery_address')
@@ -399,18 +399,18 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     }
 
     await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId, status: 'on_the_way', changed_by: `driver:${driver.id}`,
+      order_id: orderId, status: 'preparing', changed_by: `driver:${driver.id}`,
     })
 
     const shortId = orderId.slice(-6).toUpperCase()
     await sendMessage(chatId,
-      `✅ Order #${shortId} taken!\n📍 ${takenOrder.delivery_address}\n\nTap when delivered 👇`,
+      `✅ Order #${shortId} taken!\n📍 ${takenOrder.delivery_address}\n\nTap when you're on the way 👇`,
       {
-        reply_markup: { inline_keyboard: [[{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }]] },
+        reply_markup: { inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]] },
       }
     )
 
-    await notifyCustomer(takenOrder.user_id, `🛵 Your order #${shortId} is on the way!`)
+    await notifyCustomer(takenOrder.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
     return
   }
 }
