@@ -81,7 +81,8 @@ function OrderApp() {
         }
 
         if (!catRes.ok) {
-          setError('Failed to load catalogue. Please try again.')
+          const catErr = await catRes.json().catch(() => ({}))
+          setError(`Failed to load catalogue: ${catErr.detail ?? catErr.error ?? catRes.status}`)
           setView('error')
           return
         }

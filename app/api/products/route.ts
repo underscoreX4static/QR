@@ -12,17 +12,19 @@ export async function GET() {
     .returns<Category[]>()
 
   if (catError) {
-    return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 })
+    console.error('categories error:', catError)
+    return NextResponse.json({ error: 'Failed to fetch categories', detail: catError.message }, { status: 500 })
   }
 
   const { data: products, error: prodError } = await supabaseAdmin
     .from('products')
-    .select()
+    .select('id,category_id,name,description,image_url,brand,subcategory,is_active')
     .eq('is_active', true)
     .returns<Product[]>()
 
   if (prodError) {
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 })
+    console.error('products error:', prodError)
+    return NextResponse.json({ error: 'Failed to fetch products', detail: prodError.message }, { status: 500 })
   }
 
   const { data: variants, error: varError } = await supabaseAdmin
@@ -32,7 +34,8 @@ export async function GET() {
     .returns<Variant[]>()
 
   if (varError) {
-    return NextResponse.json({ error: 'Failed to fetch variants' }, { status: 500 })
+    console.error('variants error:', varError)
+    return NextResponse.json({ error: 'Failed to fetch variants', detail: varError.message }, { status: 500 })
   }
 
   // Build nested structure
