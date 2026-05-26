@@ -102,17 +102,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const shortId = params.id.slice(-6).toUpperCase()
 
-    // Notify all active drivers when order is confirmed
+    // On confirmed: notify owner only (they decide whether to handle or delegate)
     if (status === 'confirmed') {
-      const { data: drivers } = await supabaseAdmin
+      const { data: owners } = await supabaseAdmin
         .from('drivers')
-        .select('id,telegram_id,first_name')
+        .select('telegram_id')
+        .eq('is_owner', true)
         .eq('is_active', true)
-        .returns<Driver[]>()
+        .returns<Pick<Driver, 'telegram_id'>[]>()
 
-      const driverMsg = `🔔 New order #${shortId}\nAddress: ${updated.delivery_address}\nTotal: ${updated.total}€\n\nType /orders to accept it.`
+      const ownerMsg = `✅ Order #${shortId} confirmed\n📍 ${updated.delivery_address}\n💶 ${Number(updated.total).toFixed(2)}€\n\nHandle it yourself or delegate from the admin.`
       await Promise.allSettled(
-        (drivers ?? []).map((d) => sendMessage(Number(d.telegram_id), driverMsg))
+        (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
       )
     }
 

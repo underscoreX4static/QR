@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { Order, OrderItem } from '@/types'
+import { sendMessage } from '@/lib/telegram'
+import type { Order, OrderItem, Driver } from '@/types'
 
 // GET /api/orders?user_id=xxx — orders for a user
 // GET /api/orders?driver_id=xxx — orders for a driver
@@ -122,6 +123,20 @@ export async function POST(req: NextRequest) {
     status: 'pending',
     changed_by: `user:${resolvedUserId}`,
   })
+
+  // Notify owner (admin) of new order
+  const { data: owners } = await supabaseAdmin
+    .from('drivers')
+    .select('telegram_id')
+    .eq('is_owner', true)
+    .eq('is_active', true)
+    .returns<Pick<Driver, 'telegram_id'>[]>()
+
+  const shortId = order.id.slice(-6).toUpperCase()
+  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💶 ${Number(order.total).toFixed(2)}€\n\nGo to admin to confirm.`
+  await Promise.allSettled(
+    (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
+  )
 
   return NextResponse.json({ order }, { status: 201 })
 }

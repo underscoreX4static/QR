@@ -58,12 +58,13 @@ function fmt(iso: string) {
 }
 
 function OrderCard({
-  order, busy, err, onPatch,
+  order, busy, err, onPatch, onDelegate,
 }: {
   order: OrderWithItems
   busy: boolean
   err: string
   onPatch: (id: string, status: OrderStatus) => void
+  onDelegate: (id: string) => void
 }) {
   const next = NEXT_STATUS[order.status]
 
@@ -133,7 +134,7 @@ function OrderCard({
           {order.status === 'cancelled' && <span className="text-xs text-red-400">Cancelled</span>}
           {order.status === 'delivered' && <span className="text-xs text-green-500">Delivered ✓</span>}
           {next && (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 justify-end">
               <button
                 onClick={() => onPatch(order.id, next)}
                 disabled={busy}
@@ -141,6 +142,15 @@ function OrderCard({
               >
                 {busy ? '...' : NEXT_LABEL[order.status]}
               </button>
+              {['confirmed', 'preparing'].includes(order.status) && !order.driver_id && (
+                <button
+                  onClick={() => onDelegate(order.id)}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-orange-100 transition-colors"
+                >
+                  Delegate 🛵
+                </button>
+              )}
               <button
                 onClick={() => { if (confirm('Cancel this order?')) onPatch(order.id, 'cancelled') }}
                 disabled={busy}
@@ -162,6 +172,7 @@ export default function OrdersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showHistory, setShowHistory] = useState(false)
+  const [delegated, setDelegated] = useState<Record<string, boolean>>({})
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -203,6 +214,18 @@ export default function OrdersPage() {
     setActionLoading(null)
   }
 
+  const delegate = async (orderId: string) => {
+    setActionLoading(orderId)
+    const res = await fetch(`/api/orders/${orderId}/assign`, { method: 'POST' })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to delegate' }))
+    } else {
+      setDelegated((d) => ({ ...d, [orderId]: true }))
+    }
+    setActionLoading(null)
+  }
+
   const active = orders.filter((o) => (ACTIVE_STATUSES as string[]).includes(o.status))
   const history = orders.filter((o) => !(ACTIVE_STATUSES as string[]).includes(o.status))
 
@@ -232,10 +255,11 @@ export default function OrdersPage() {
             ) : active.map((order) => (
               <OrderCard
                 key={order.id}
-                order={order}
+                order={{ ...order, driver_id: delegated[order.id] ? 'delegated' : order.driver_id }}
                 busy={actionLoading === order.id}
-                err={errors[order.id] ?? ''}
+                err={errors[order.id] ? errors[order.id] : delegated[order.id] ? '✅ Delegated to external driver' : ''}
                 onPatch={patch}
+                onDelegate={delegate}
               />
             ))}
           </div>
@@ -266,6 +290,7 @@ export default function OrdersPage() {
                   busy={false}
                   err=""
                   onPatch={patch}
+                  onDelegate={delegate}
                 />
               ))}
             </div>
