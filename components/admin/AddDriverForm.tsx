@@ -26,7 +26,7 @@ export default function AddDriverForm() {
     setOpen(false)
     setForm({ telegram_id: '', first_name: '', last_name: '', is_owner: false })
     setLoading(false)
-    window.location.reload()
+    window.location.href = '/admin/drivers'
   }
 
   return (

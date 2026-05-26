@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Driver } from '@/types'

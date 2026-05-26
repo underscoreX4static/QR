@@ -15,7 +15,7 @@ export default function DeleteDriverButton({ id, name }: { id: string; name: str
       setLoading(false)
       return
     }
-    window.location.reload()
+    window.location.href = '/admin/drivers'
   }
 
   return (
