@@ -44,12 +44,12 @@ export default function CatalogueImport() {
       transformHeader: (h) => h.trim(),
       complete: (result) => {
         const missing = REQUIRED.filter((k) => !result.meta.fields?.includes(k))
-        if (missing.length) { setParseError(`Colonnes manquantes : ${missing.join(', ')}`); return }
-        if (result.data.length === 0) { setParseError('Le fichier est vide'); return }
+        if (missing.length) { setParseError(`Missing columns: ${missing.join(', ')}`); return }
+        if (result.data.length === 0) { setParseError('The file is empty'); return }
         setRows(result.data)
         setStep('preview')
       },
-      error: (err) => setParseError(`Erreur parsing : ${err.message}`),
+      error: (err) => setParseError(`Parse error: ${err.message}`),
     })
   }
 
@@ -71,7 +71,7 @@ export default function CatalogueImport() {
         onClick={() => setOpen(true)}
         className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700 transition-colors"
       >
-        Importer CSV
+        Import CSV
       </button>
 
       {open && (
@@ -91,7 +91,7 @@ export default function CatalogueImport() {
               {step === 'idle' && (
                 <div className="space-y-4">
                   <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <p>Format attendu (headers CSV) :</p>
+                    <p>Expected format (CSV headers):</p>
                     <code className="block text-xs bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-gray-700 dark:text-gray-300 break-all">
                       category_name, subcategory, brand, product_name, variant_size, description, price_sell, price_cost, stock_qty, image_url, is_active
                     </code>
@@ -111,13 +111,13 @@ export default function CatalogueImport() {
               {step === 'preview' && (
                 <div className="space-y-3">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    <span className="font-semibold text-gray-900 dark:text-gray-100">{rows.length} lignes</span> détectées. Vérifiez avant d'importer.
+                    <span className="font-semibold text-gray-900 dark:text-gray-100">{rows.length} rows</span> detected. Review before importing.
                   </p>
                   <div className="overflow-x-auto rounded-xl border border-gray-100 dark:border-gray-800">
                     <table className="text-xs w-full">
                       <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                          {['Catégorie', 'Marque', 'Produit', 'Taille', 'Prix vente', 'Prix coût', 'Stock', 'Actif'].map((h) => (
+                          {['Category', 'Brand', 'Product', 'Size', 'Sell price', 'Cost price', 'Stock', 'Active'].map((h) => (
                             <th key={h} className="text-left px-3 py-2 text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">{h}</th>
                           ))}
                         </tr>
@@ -134,7 +134,7 @@ export default function CatalogueImport() {
                             <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{row.stock_qty}</td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               <span className={`px-1.5 py-0.5 rounded-full text-xs ${row.is_active === 'false' || row.is_active === '0' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
-                                {row.is_active === 'false' || row.is_active === '0' ? 'Non' : 'Oui'}
+                                {row.is_active === 'false' || row.is_active === '0' ? 'No' : 'Yes'}
                               </span>
                             </td>
                           </tr>
@@ -143,7 +143,7 @@ export default function CatalogueImport() {
                     </table>
                   </div>
                   {rows.length > 50 && (
-                    <p className="text-xs text-gray-400 text-center">Affichage limité aux 50 premières lignes</p>
+                    <p className="text-xs text-gray-400 text-center">Preview limited to first 50 rows</p>
                   )}
                 </div>
               )}
@@ -152,7 +152,7 @@ export default function CatalogueImport() {
               {step === 'importing' && (
                 <div className="flex flex-col items-center justify-center py-8 gap-3">
                   <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Import en cours ({rows.length} lignes)...</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Importing ({rows.length} rows)...</p>
                 </div>
               )}
 
@@ -161,9 +161,9 @@ export default function CatalogueImport() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { label: 'Catégories créées', value: summary.categories, color: 'text-blue-600 dark:text-blue-400' },
-                      { label: 'Produits créés', value: summary.products, color: 'text-green-600 dark:text-green-400' },
-                      { label: 'Variants créés', value: summary.variants, color: 'text-purple-600 dark:text-purple-400' },
+                      { label: 'Categories created', value: summary.categories, color: 'text-blue-600 dark:text-blue-400' },
+                      { label: 'Products created', value: summary.products, color: 'text-green-600 dark:text-green-400' },
+                      { label: 'Variants created', value: summary.variants, color: 'text-purple-600 dark:text-purple-400' },
                     ].map((s) => (
                       <div key={s.label} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
                         <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -173,14 +173,14 @@ export default function CatalogueImport() {
                   </div>
                   {summary.errors.length > 0 && (
                     <div className="bg-red-50 dark:bg-red-900/20 rounded-xl p-3 space-y-1">
-                      <p className="text-sm font-medium text-red-700 dark:text-red-400">{summary.errors.length} erreur(s) :</p>
+                      <p className="text-sm font-medium text-red-700 dark:text-red-400">{summary.errors.length} error(s):</p>
                       {summary.errors.map((e, i) => (
                         <p key={i} className="text-xs text-red-600 dark:text-red-400">{e}</p>
                       ))}
                     </div>
                   )}
                   {summary.errors.length === 0 && (
-                    <p className="text-sm text-green-600 dark:text-green-400 text-center">Import réussi sans erreur ✓</p>
+                    <p className="text-sm text-green-600 dark:text-green-400 text-center">Import completed without errors ✓</p>
                   )}
                 </div>
               )}
@@ -190,16 +190,16 @@ export default function CatalogueImport() {
             <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-2 shrink-0">
               {step === 'idle' && (
                 <button onClick={close} className="flex-1 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Annuler
+                  Cancel
                 </button>
               )}
               {step === 'preview' && (
                 <>
                   <button onClick={reset} className="flex-1 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-medium text-gray-600 dark:text-gray-400">
-                    Changer de fichier
+                    Change file
                   </button>
                   <button onClick={runImport} className="flex-1 py-2.5 bg-green-600 text-white rounded-xl text-sm font-medium hover:bg-green-700">
-                    Confirmer l'import
+                    Confirm import
                   </button>
                 </>
               )}
@@ -208,7 +208,7 @@ export default function CatalogueImport() {
                   onClick={() => { close(); window.location.href = '/admin/products' }}
                   className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700"
                 >
-                  Voir les produits
+                  View products
                 </button>
               )}
             </div>

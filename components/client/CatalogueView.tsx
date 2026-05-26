@@ -49,7 +49,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
       {/* Products */}
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 space-y-3">
         {activeProducts.length === 0 ? (
-          <p className="text-center text-gray-400 mt-12">Aucun produit disponible</p>
+          <p className="text-center text-gray-400 mt-12">No products available</p>
         ) : (
           activeProducts.map((product) => (
             <ProductCard
@@ -72,7 +72,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
             <span className="bg-blue-500 rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
               {count}
             </span>
-            <span className="font-semibold text-base">Voir mon panier</span>
+            <span className="font-semibold text-base">View my cart</span>
             <span className="font-semibold">{total.toFixed(2)}€</span>
           </button>
         </div>

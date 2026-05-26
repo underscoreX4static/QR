@@ -34,7 +34,7 @@ export default async function QRPage() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{qr.partner_name}</p>
               </div>
               <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${qr.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                {qr.is_active ? 'Actif' : 'Inactif'}
+                {qr.is_active ? 'Active' : 'Inactive'}
               </span>
             </div>
             <div className="bg-white rounded-xl p-2">
@@ -46,12 +46,12 @@ export default async function QRPage() {
               download={`qr-${qr.slug}.png`}
               className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
             >
-              Télécharger
+              Download
             </a>
           </div>
         ))}
         {qrWithPartner.length === 0 && (
-          <p className="col-span-2 text-center text-gray-400 py-8">Aucun QR code</p>
+          <p className="col-span-2 text-center text-gray-400 py-8">No QR codes yet</p>
         )}
       </div>
     </div>

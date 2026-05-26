@@ -6,8 +6,8 @@ import CreateSettlementForm from '@/components/admin/CreateSettlementForm'
 import SettlementActions from '@/components/admin/SettlementActions'
 
 const STATUS_LABELS: Record<string, string> = {
-  proposed: 'Proposé', driver_confirmed: 'Confirmé livreur',
-  paid: 'Payé', payment_received: 'Paiement reçu', partner_confirmed: 'Confirmé partenaire',
+  proposed: 'Proposed', driver_confirmed: 'Driver confirmed',
+  paid: 'Paid', payment_received: 'Payment received', partner_confirmed: 'Partner confirmed',
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -29,7 +29,7 @@ export default async function SettlementsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Règlements</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Settlements</h2>
         <CreateSettlementForm drivers={drivers ?? []} />
       </div>
 
@@ -51,7 +51,7 @@ export default async function SettlementsPage() {
               )}
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {new Date(s.period_start).toLocaleDateString('fr-FR')} → {new Date(s.period_end).toLocaleDateString('fr-FR')}
+                  {new Date(s.period_start).toLocaleDateString('en-GB')} → {new Date(s.period_end).toLocaleDateString('en-GB')}
                   {' · '}cash: {Number(s.total_cash).toFixed(2)}€
                 </span>
                 <SettlementActions settlement={s} />
@@ -59,7 +59,7 @@ export default async function SettlementsPage() {
             </div>
           ))}
           {!settlements?.length && (
-            <p className="px-4 py-8 text-center text-gray-400">Aucun règlement</p>
+            <p className="px-4 py-8 text-center text-gray-400">No settlements yet</p>
           )}
         </div>
       </div>

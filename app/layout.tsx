@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Delivery App",
-  description: "Commande via QR code",
+  description: "Order via QR code",
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html lang="en">
       <head>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"

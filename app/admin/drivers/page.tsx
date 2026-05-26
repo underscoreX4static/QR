@@ -13,7 +13,7 @@ export default async function DriversPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Livreurs</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Drivers</h2>
         <AddDriverForm />
       </div>
 
@@ -27,11 +27,11 @@ export default async function DriversPage() {
                     {driver.first_name} {driver.last_name ?? ''}
                   </span>
                   {driver.is_owner
-                    ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Propriétaire</span>
-                    : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Livreur</span>
+                    ? <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">Owner</span>
+                    : <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">Driver</span>
                   }
                   <span className={`text-xs px-2 py-0.5 rounded-full ${driver.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
-                    {driver.is_active ? 'Actif' : 'Inactif'}
+                    {driver.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">{driver.telegram_id}</p>
@@ -40,7 +40,7 @@ export default async function DriversPage() {
             </div>
           ))}
           {!drivers?.length && (
-            <p className="px-4 py-8 text-center text-gray-400">Aucun livreur</p>
+            <p className="px-4 py-8 text-center text-gray-400">No drivers yet</p>
           )}
         </div>
       </div>

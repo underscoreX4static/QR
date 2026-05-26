@@ -30,7 +30,7 @@ async function handleMessage(msg: TelegramBot.Message) {
   }
 
   await getOrCreateUser(telegramId, msg.from!)
-  await sendMessage(chatId, 'Scanne un QR code pour passer une commande.')
+  await sendMessage(chatId, 'Scan a QR code to place an order.')
 }
 
 async function handleStart(
@@ -43,7 +43,7 @@ async function handleStart(
 
   const driver = await getDriver(telegramId)
   if (driver) {
-    await sendMessage(chatId, `Bonjour ${driver.first_name} 👋\nTu es connecté en tant que livreur.`, {
+    await sendMessage(chatId, `Hello ${driver.first_name} 👋\nYou are logged in as a driver.`, {
       reply_markup: driverKeyboard(),
     })
     return
@@ -76,12 +76,12 @@ async function handleStart(
       const appUrl = `${process.env.NEXT_PUBLIC_APP_URL}/order?qr=${payload}`
       await sendMessage(
         chatId,
-        `Bonjour ${user.first_name} 👋\nScanne détecté : *${qrCode.label}*\n\nAppuie sur le bouton pour commander 👇`,
+        `Hello ${user.first_name} 👋\nQR detected: *${qrCode.label}*\n\nTap the button to order 👇`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
-              { text: '🛒 Commander', web_app: { url: appUrl } },
+              { text: '🛒 Order', web_app: { url: appUrl } },
             ]],
           },
         }
@@ -90,7 +90,7 @@ async function handleStart(
     }
   }
 
-  await sendMessage(chatId, `Bonjour ${user.first_name} 👋\nScanne un QR code pour commencer.`)
+  await sendMessage(chatId, `Hello ${user.first_name} 👋\nScan a QR code to get started.`)
 }
 
 async function handleDriverMessage(chatId: number, driver: Driver, text: string) {
@@ -104,18 +104,18 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
     const orders = rawOrders as Order[] | null
 
     if (!orders?.length) {
-      await sendMessage(chatId, 'Aucune commande en attente.')
+      await sendMessage(chatId, 'No pending orders.')
       return
     }
 
     for (const order of orders) {
       await sendMessage(
         chatId,
-        `📦 Commande #${order.id.slice(-6).toUpperCase()}\nStatut: ${order.status}\nAdresse: ${order.delivery_address}\nTotal: ${order.total}€`,
+        `📦 Order #${order.id.slice(-6).toUpperCase()}\nStatus: ${order.status}\nAddress: ${order.delivery_address}\nTotal: ${order.total}€`,
         {
           reply_markup: {
             inline_keyboard: [[
-              { text: '✅ Prendre en charge', callback_data: `take_order:${order.id}` },
+              { text: '✅ Take order', callback_data: `take_order:${order.id}` },
             ]],
           },
         }
@@ -124,7 +124,7 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
     return
   }
 
-  await sendMessage(chatId, 'Commandes disponibles: /orders')
+  await sendMessage(chatId, 'Available commands: /orders')
 }
 
 async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
@@ -145,7 +145,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     const driver = await getDriver(telegramId)
     if (!driver) {
-      await sendMessage(chatId, 'Non autorisé.')
+      await sendMessage(chatId, 'Unauthorized.')
       return
     }
 
@@ -156,7 +156,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .in('status', ['confirmed', 'preparing'])
 
     if (error) {
-      await sendMessage(chatId, 'Erreur lors de la prise en charge.')
+      await sendMessage(chatId, 'Error taking order.')
       return
     }
 
@@ -166,7 +166,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
-    await sendMessage(chatId, `✅ Commande #${orderId.slice(-6).toUpperCase()} prise en charge.\nBonne livraison !`)
+    await sendMessage(chatId, `✅ Order #${orderId.slice(-6).toUpperCase()} taken.\nGood delivery!`)
   }
 }
 

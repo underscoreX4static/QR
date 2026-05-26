@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
         } else {
           const { data: newCat, error: catErr } = await supabaseAdmin
             .from('categories').insert({ name: catName, sort_order: 0, is_active: true }).select('id').single()
-          if (catErr || !newCat) { summary.errors.push(`Ligne ${lineNum}: erreur catégorie — ${catErr?.message}`); continue }
+          if (catErr || !newCat) { summary.errors.push(`Row ${lineNum}: category error — ${catErr?.message}`); continue }
           categoryCache[catName] = newCat.id
           summary.categories++
         }
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
               subcategory: row.subcategory?.trim() || null,
               is_active: isActive,
             }).select('id').single()
-          if (prodErr || !newProduct) { summary.errors.push(`Ligne ${lineNum}: erreur produit — ${prodErr?.message}`); continue }
+          if (prodErr || !newProduct) { summary.errors.push(`Row ${lineNum}: product error — ${prodErr?.message}`); continue }
           productCache[productKey] = newProduct.id
           summary.products++
         }
@@ -110,11 +110,11 @@ export async function POST(req: NextRequest) {
           stock_qty: stockQty,
           is_active: isActive,
         })
-        if (varErr) { summary.errors.push(`Ligne ${lineNum}: erreur variant — ${varErr.message}`); continue }
+        if (varErr) { summary.errors.push(`Row ${lineNum}: variant error — ${varErr.message}`); continue }
         summary.variants++
       }
     } catch (e) {
-      summary.errors.push(`Ligne ${lineNum}: erreur inattendue — ${String(e)}`)
+      summary.errors.push(`Row ${lineNum}: unexpected error — ${String(e)}`)
     }
   }
 

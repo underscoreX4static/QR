@@ -11,12 +11,7 @@ async function getStats() {
   ])
   const allOrders = orders.data ?? []
   const revenue = allOrders.filter((o) => o.status === 'delivered').reduce((s, o) => s + Number(o.total), 0)
-  return {
-    totalOrders: allOrders.length,
-    activeOrders: pendingOrders.data?.length ?? 0,
-    revenue,
-    drivers: drivers.data?.length ?? 0,
-  }
+  return { totalOrders: allOrders.length, activeOrders: pendingOrders.data?.length ?? 0, revenue, drivers: drivers.data?.length ?? 0 }
 }
 
 async function getRecentOrders() {
@@ -34,8 +29,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente', confirmed: 'Confirmée', preparing: 'En préparation',
-  on_the_way: 'En route', delivered: 'Livrée', cancelled: 'Annulée',
+  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+  on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 
 export default async function AdminPage() {
@@ -43,14 +38,14 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Vue globale</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Overview</h2>
 
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Commandes totales', value: stats.totalOrders, color: 'text-blue-600 dark:text-blue-400' },
-          { label: 'En cours', value: stats.activeOrders, color: 'text-orange-600 dark:text-orange-400' },
-          { label: 'Revenus livrés', value: `${stats.revenue.toFixed(2)}€`, color: 'text-green-600 dark:text-green-400' },
-          { label: 'Livreurs actifs', value: stats.drivers, color: 'text-purple-600 dark:text-purple-400' },
+          { label: 'Total orders', value: stats.totalOrders, color: 'text-blue-600 dark:text-blue-400' },
+          { label: 'Active orders', value: stats.activeOrders, color: 'text-orange-600 dark:text-orange-400' },
+          { label: 'Revenue', value: `${stats.revenue.toFixed(2)}€`, color: 'text-green-600 dark:text-green-400' },
+          { label: 'Active drivers', value: stats.drivers, color: 'text-purple-600 dark:text-purple-400' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{stat.label}</p>
@@ -61,7 +56,7 @@ export default async function AdminPage() {
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-4 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Dernières commandes</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Recent orders</h3>
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
           {recentOrders.map((order) => (
@@ -79,7 +74,7 @@ export default async function AdminPage() {
             </div>
           ))}
           {recentOrders.length === 0 && (
-            <p className="px-4 py-8 text-center text-gray-400">Aucune commande</p>
+            <p className="px-4 py-8 text-center text-gray-400">No orders yet</p>
           )}
         </div>
       </div>

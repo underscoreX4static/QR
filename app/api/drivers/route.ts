@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     .single<Driver>()
 
   if (error || !data) {
-    const msg = error?.message?.includes('unique') ? 'Ce Telegram ID est déjà enregistré' : 'Erreur création livreur'
+    const msg = error?.message?.includes('unique') ? 'This Telegram ID is already registered' : 'Failed to create driver'
     return NextResponse.json({ error: msg }, { status: 500 })
   }
   return NextResponse.json({ driver: data }, { status: 201 })

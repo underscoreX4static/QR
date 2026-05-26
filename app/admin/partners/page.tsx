@@ -11,7 +11,7 @@ export default async function PartnersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Partenaires</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Partners</h2>
         <AddPartnerForm />
       </div>
 
@@ -22,7 +22,7 @@ export default async function PartnersPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-gray-900 dark:text-gray-100">{p.name}</span>
                 <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${p.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                  {p.is_active ? 'Actif' : 'Inactif'}
+                  {p.is_active ? 'Active' : 'Inactive'}
                 </span>
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">{p.address}</p>
@@ -30,7 +30,7 @@ export default async function PartnersPage() {
             </div>
           ))}
           {!partners?.length && (
-            <p className="px-4 py-8 text-center text-gray-400">Aucun partenaire</p>
+            <p className="px-4 py-8 text-center text-gray-400">No partners yet</p>
           )}
         </div>
       </div>

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const { name, address, contact_name, contact_phone } = body
 
   if (!name || !address || !contact_name || !contact_phone) {
-    return NextResponse.json({ error: 'Tous les champs sont requis' }, { status: 400 })
+    return NextResponse.json({ error: 'All fields are required' }, { status: 400 })
   }
 
   const { data, error } = await supabaseAdmin
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest) {
     .select()
     .single<Partner>()
 
-  if (error || !data) return NextResponse.json({ error: 'Erreur création partenaire' }, { status: 500 })
+  if (error || !data) return NextResponse.json({ error: 'Failed to create partner' }, { status: 500 })
   return NextResponse.json({ partner: data }, { status: 201 })
 }

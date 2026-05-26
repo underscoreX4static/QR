@@ -14,8 +14,8 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente', confirmed: 'Confirmée', preparing: 'En préparation',
-  on_the_way: 'En route', delivered: 'Livrée', cancelled: 'Annulée',
+  pending: 'Pending', confirmed: 'Confirmed', preparing: 'Preparing',
+  on_the_way: 'On the way', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 
 export default async function OrdersPage() {
@@ -24,7 +24,7 @@ export default async function OrdersPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Commandes</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Orders</h2>
 
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -42,14 +42,14 @@ export default async function OrdersPage() {
               <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{order.delivery_address}</p>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {new Date(order.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  {new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <OrderActions order={order} />
               </div>
             </div>
           ))}
           {!orders?.length && (
-            <p className="px-4 py-8 text-center text-gray-400">Aucune commande</p>
+            <p className="px-4 py-8 text-center text-gray-400">No orders yet</p>
           )}
         </div>
       </div>

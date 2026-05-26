@@ -5,13 +5,13 @@ import { usePathname } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
 
 const NAV = [
-  { href: '/admin',             label: 'Accueil',      icon: '📊' },
-  { href: '/admin/orders',      label: 'Commandes',    icon: '📦' },
-  { href: '/admin/products',    label: 'Produits',     icon: '🛍️' },
+  { href: '/admin',             label: 'Overview',     icon: '📊' },
+  { href: '/admin/orders',      label: 'Orders',       icon: '📦' },
+  { href: '/admin/products',    label: 'Products',     icon: '🛍️' },
   { href: '/admin/qr',          label: 'QR',           icon: '🔳' },
-  { href: '/admin/partners',    label: 'Partenaires',  icon: '🤝' },
-  { href: '/admin/drivers',     label: 'Livreurs',     icon: '🛵' },
-  { href: '/admin/settlements', label: 'Règlements',   icon: '💰' },
+  { href: '/admin/partners',    label: 'Partners',     icon: '🤝' },
+  { href: '/admin/drivers',     label: 'Drivers',      icon: '🛵' },
+  { href: '/admin/settlements', label: 'Settlements',  icon: '💰' },
 ]
 
 export default function Sidebar() {
@@ -50,7 +50,7 @@ export default function Sidebar() {
           className="mt-4 mx-3 flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
           <span>{theme === 'dark' ? '☀️' : '🌙'}</span>
-          {theme === 'dark' ? 'Mode clair' : 'Mode sombre'}
+          {theme === 'dark' ? 'Light mode' : 'Dark mode'}
         </button>
       </aside>
 

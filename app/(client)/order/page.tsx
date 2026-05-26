@@ -58,7 +58,7 @@ function OrderApp() {
   // Fetch catalogue + QR validation
   useEffect(() => {
     if (!qrSlug) {
-      setError('QR code invalide. Scanne à nouveau.')
+      setError('Invalid QR code. Please scan again.')
       setView('error')
       return
     }
@@ -75,7 +75,7 @@ function OrderApp() {
         if (cancelled) return
 
         if (!qrRes.ok) {
-          setError('QR code introuvable ou inactif.')
+          setError('QR code not found or inactive.')
           setView('error')
           return
         }
@@ -90,7 +90,7 @@ function OrderApp() {
         setView('catalogue')
       } catch {
         if (!cancelled) {
-          setError('Erreur de connexion. Réessaie.')
+          setError('Connection error. Please try again.')
           setView('error')
         }
       }
@@ -106,7 +106,7 @@ function OrderApp() {
     // Get Telegram user from Mini App SDK
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
     if (!tgUser) {
-      window.Telegram?.WebApp?.showAlert('Ouvre cette app depuis Telegram.')
+      window.Telegram?.WebApp?.showAlert('Open this app from Telegram.')
       return
     }
 
@@ -132,7 +132,7 @@ function OrderApp() {
       const json = await res.json()
 
       if (!res.ok) {
-        window.Telegram?.WebApp?.showAlert(json.error ?? 'Erreur lors de la commande.')
+        window.Telegram?.WebApp?.showAlert(json.error ?? 'Failed to place order.')
         return
       }
 
@@ -140,7 +140,7 @@ function OrderApp() {
       setCart({ items: [], qrSlug })
       setView('confirmation')
     } catch {
-      window.Telegram?.WebApp?.showAlert('Erreur de connexion. Réessaie.')
+      window.Telegram?.WebApp?.showAlert('Connection error. Please try again.')
     } finally {
       setIsOrdering(false)
     }
@@ -151,7 +151,7 @@ function OrderApp() {
       <div className="flex items-center justify-center h-screen">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-gray-500">Chargement...</p>
+          <p className="text-sm text-gray-500">Loading...</p>
         </div>
       </div>
     )
@@ -191,7 +191,7 @@ function OrderApp() {
     <div>
       {data?.partner && (
         <div className="px-4 py-3 bg-white border-b border-gray-100">
-          <p className="text-xs text-gray-400 uppercase tracking-wide">Livraison depuis</p>
+          <p className="text-xs text-gray-400 uppercase tracking-wide">Delivery from</p>
           <h1 className="font-bold text-gray-900">{data.partner.name}</h1>
         </div>
       )}

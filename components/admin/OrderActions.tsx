@@ -10,9 +10,9 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 }
 
 const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
-  pending:   'Confirmer',
-  confirmed: 'En préparation',
-  preparing: 'En route',
+  pending:   'Confirm',
+  confirmed: 'Preparing',
+  preparing: 'On the way',
 }
 
 interface Props { order: Order }
@@ -34,7 +34,7 @@ export default function OrderActions({ order }: Props) {
     })
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setError(json.error ?? 'Erreur')
+      setError(json.error ?? 'An error occurred')
       setLoading(false)
       return
     }
@@ -43,7 +43,7 @@ export default function OrderActions({ order }: Props) {
   }
 
   const cancel = async () => {
-    if (!confirm('Annuler cette commande ?')) return
+    if (!confirm('Cancel this order?')) return
     setLoading(true)
     setError('')
     const res = await fetch(`/api/orders/${order.id}`, {
@@ -53,7 +53,7 @@ export default function OrderActions({ order }: Props) {
     })
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setError(json.error ?? 'Erreur')
+      setError(json.error ?? 'An error occurred')
       setLoading(false)
       return
     }
@@ -78,7 +78,7 @@ export default function OrderActions({ order }: Props) {
             disabled={loading}
             className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
           >
-            Annuler
+            Cancel
           </button>
         )}
       </div>

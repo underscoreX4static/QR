@@ -25,7 +25,7 @@ export default async function ProductsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Produits</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Products</h2>
         <div className="flex gap-2">
           <CatalogueImport />
           <AddProductForm categories={categories ?? []} />
@@ -41,14 +41,14 @@ export default async function ProductsPage() {
             </span>
           </div>
           {cat.products.length === 0 ? (
-            <p className="px-4 py-4 text-sm text-gray-400">Aucun produit</p>
+            <p className="px-4 py-4 text-sm text-gray-400">No products</p>
           ) : (
             <div className="divide-y divide-gray-50 dark:divide-gray-800">
               {cat.products.map((product) => (
                 <div key={product.id} className="px-4 py-3">
                   <p className="font-medium text-gray-900 dark:text-gray-100 mb-2">{product.name}</p>
                   {product.variants.length === 0 ? (
-                    <p className="text-xs text-gray-400">Aucun variant</p>
+                    <p className="text-xs text-gray-400">No variants</p>
                   ) : (
                     <div className="space-y-1.5">
                       {product.variants.map((variant) => (
@@ -60,7 +60,7 @@ export default async function ProductsPage() {
                               stock: {variant.stock_qty}
                             </span>
                             <span className={`text-xs px-2 py-0.5 rounded-full ${variant.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'}`}>
-                              {variant.is_active ? 'Actif' : 'Inactif'}
+                              {variant.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </div>
                         </div>

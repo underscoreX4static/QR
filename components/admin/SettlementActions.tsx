@@ -12,10 +12,10 @@ const NEXT_STATUS: Partial<Record<SettlementStatus, SettlementStatus>> = {
 }
 
 const NEXT_LABEL: Partial<Record<SettlementStatus, string>> = {
-  proposed:          'Confirmer livreur',
-  driver_confirmed:  'Marquer payé',
-  paid:              'Confirmer réception',
-  payment_received:  'Confirmer partenaire',
+  proposed:          'Confirm driver',
+  driver_confirmed:  'Mark paid',
+  paid:              'Confirm receipt',
+  payment_received:  'Confirm partner',
 }
 
 interface Props { settlement: Settlement }
@@ -37,7 +37,7 @@ export default function SettlementActions({ settlement }: Props) {
     })
     if (!res.ok) {
       const json = await res.json().catch(() => ({}))
-      setError(json.error ?? 'Erreur')
+      setError(json.error ?? 'An error occurred')
       setLoading(false)
       return
     }

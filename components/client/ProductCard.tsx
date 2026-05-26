@@ -52,7 +52,7 @@ export default function ProductCard({ product, cart, onAdd }: Props) {
                       {inCart.quantity}
                     </span>
                   ) : null}
-                  + Ajouter
+                  + Add
                 </button>
               </div>
             )

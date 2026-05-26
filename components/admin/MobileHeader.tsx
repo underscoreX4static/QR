@@ -4,13 +4,13 @@ import { usePathname } from 'next/navigation'
 import { useTheme } from './ThemeProvider'
 
 const PAGE_TITLES: Record<string, string> = {
-  '/admin':             'Vue globale',
-  '/admin/orders':      'Commandes',
-  '/admin/products':    'Produits',
+  '/admin':             'Overview',
+  '/admin/orders':      'Orders',
+  '/admin/products':    'Products',
   '/admin/qr':          'QR Codes',
-  '/admin/partners':    'Partenaires',
-  '/admin/drivers':     'Livreurs',
-  '/admin/settlements': 'Règlements',
+  '/admin/partners':    'Partners',
+  '/admin/drivers':     'Drivers',
+  '/admin/settlements': 'Settlements',
 }
 
 export default function MobileHeader() {
