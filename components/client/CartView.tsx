@@ -48,7 +48,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!street.trim() || !suburb.trim() || !postcode.trim() || !state.trim()) return
+    if (!street.trim() || !suburb.trim() || !postcode.trim()) return
     if (postcode.length !== 4 || postcodeError) return
 
     const fullAddress = `${street.trim()}, ${suburb.trim()} QLD ${postcode.trim()}, Australia`
