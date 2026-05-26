@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { QRCode, Partner } from '@/types'
 import CreateQRForm from '@/components/admin/CreateQRForm'
-import DeleteQRButton from '@/components/admin/DeleteQRButton'
+import QRCard from '@/components/admin/QRCard'
 
 interface QRWithPartner extends QRCode { partner_name: string }
 
@@ -28,29 +28,14 @@ export default async function QRPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {qrWithPartner.map((qr) => (
-          <div key={qr.id} className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm space-y-3 flex flex-col items-center">
-            <div className="w-full flex items-start justify-between gap-1">
-              <div className="min-w-0">
-                <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{qr.label}</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{qr.partner_name}</p>
-              </div>
-              <DeleteQRButton id={qr.id} label={qr.label} isActive={qr.is_active} badgeOnly />
-            </div>
-            <div className="bg-white rounded-xl p-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/qr/image?slug=${qr.slug}`} alt={`QR ${qr.label}`} className="w-24 h-24" />
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={`/api/qr/image?slug=${qr.slug}`}
-                download={`qr-${qr.slug}.png`}
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
-              >
-                Download
-              </a>
-              <DeleteQRButton id={qr.id} label={qr.label} isActive={qr.is_active} />
-            </div>
-          </div>
+          <QRCard
+            key={qr.id}
+            id={qr.id}
+            slug={qr.slug}
+            label={qr.label}
+            partnerName={qr.partner_name}
+            isActive={qr.is_active}
+          />
         ))}
         {qrWithPartner.length === 0 && (
           <p className="col-span-2 text-center text-gray-400 py-8">No QR codes yet</p>
