@@ -1,15 +1,23 @@
-import { NextResponse } from 'next/server'
-import { supabaseAdmin } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server'
+import { DELIVERY_FEE, FREE_DELIVERY_THRESHOLD, isValidPostcode } from '@/lib/delivery'
 
-// GET /api/orders/fee — public endpoint to get the current delivery fee
-export async function GET() {
-  const { data } = await supabaseAdmin
-    .from('settings')
-    .select('value')
-    .eq('key', 'delivery_fee')
-    .single()
+// GET /api/orders/fee?subtotal=XX&postcode=XXXX
+export async function GET(req: NextRequest) {
+  const subtotal = parseFloat(req.nextUrl.searchParams.get('subtotal') ?? '0')
+  const postcode = req.nextUrl.searchParams.get('postcode') ?? ''
 
-  const deliveryFee = data ? parseFloat(data.value) : 0
+  if (postcode && !isValidPostcode(postcode)) {
+    return NextResponse.json(
+      { error: 'Sorry, we don\'t deliver to your area yet. We currently deliver within Brisbane.' },
+      { status: 422 }
+    )
+  }
 
-  return NextResponse.json({ delivery_fee: deliveryFee })
+  const delivery_fee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE
+
+  return NextResponse.json({
+    delivery_fee,
+    free_delivery_threshold: FREE_DELIVERY_THRESHOLD,
+    is_free: delivery_fee === 0,
+  })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage } from '@/lib/telegram'
+import { calculateDeliveryFee } from '@/lib/delivery'
 import type { Order, OrderItem, Driver } from '@/types'
 
 // GET /api/orders?user_id=xxx — orders for a user
@@ -78,13 +79,7 @@ export async function POST(req: NextRequest) {
   }
 
   const subtotal = orderItems.reduce((s: number, i: typeof orderItems[0]) => s + i.line_total, 0)
-  const { data: settings } = await supabaseAdmin
-    .from('settings')
-    .select()
-    .eq('key', 'delivery_fee')
-    .single()
-
-  const deliveryFee = settings ? parseFloat(settings.value) : 0
+  const deliveryFee = calculateDeliveryFee(subtotal)
   const total = subtotal + deliveryFee
 
   // Create order
