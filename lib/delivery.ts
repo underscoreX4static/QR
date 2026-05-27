@@ -165,28 +165,29 @@ export interface DeliverySlot {
 export function getAvailableSlots(now: Date = new Date()): DeliverySlot[] {
   const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
-
   const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000) // now + 2h
 
   for (let dayOffset = 0; dayOffset <= 2; dayOffset++) {
-    const day = new Date(local)
-    day.setUTCDate(day.getUTCDate() + dayOffset)
-    day.setUTCMinutes(0)
-    day.setUTCSeconds(0)
-    day.setUTCMilliseconds(0)
+    // Fresh base date for each day — avoid mutating shared object across iterations
+    const base = new Date(local)
+    base.setUTCDate(base.getUTCDate() + dayOffset)
+    base.setUTCMinutes(0)
+    base.setUTCSeconds(0)
+    base.setUTCMilliseconds(0)
 
-    const { open, close } = getStoreHours(day)
-    const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : day.toLocaleDateString('en-AU', { weekday: 'long' })
+    const { open, close } = getStoreHours(base)
+    const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : base.toLocaleDateString('en-AU', { weekday: 'long' })
 
     for (let h = open; h < close; h++) {
-      day.setUTCHours(h)
-      if (day >= minTime) {
+      const slot = new Date(base)
+      slot.setUTCHours(h)
+      if (slot >= minTime) {
         const hour12 = h % 12 === 0 ? 12 : h % 12
         const ampm = h < 12 ? 'AM' : 'PM'
         slots.push({
           label: `${dayLabel} ${hour12}:00 ${ampm}`,
-          value: day.toISOString(),
-          date: new Date(day),
+          value: slot.toISOString(),
+          date: slot,
         })
       }
     }
