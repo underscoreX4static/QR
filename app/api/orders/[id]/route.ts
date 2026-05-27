@@ -1,9 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendMessage } from '@/lib/telegram'
+import { sendMessage, editMessageReplyMarkup } from '@/lib/telegram'
 import type { Order, OrderStatus, Driver } from '@/types'
 
 export const dynamic = 'force-dynamic'
+
+const STATUS_TEXT: Partial<Record<OrderStatus, string>> = {
+  confirmed:  '✅ Confirmed',
+  preparing:  '🍳 Preparing',
+  on_the_way: '🛵 On the way',
+  delivered:  '🎉 Delivered',
+  cancelled:  '❌ Cancelled',
+}
+
+async function clearOwnerButtons(orderId: string, shortId: string, status: OrderStatus) {
+  const { data: owners } = await supabaseAdmin
+    .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
+  const label = STATUS_TEXT[status] ?? status
+  for (const owner of owners ?? []) {
+    const key = `owner_msg:${orderId}:${owner.telegram_id}`
+    const { data } = await supabaseAdmin.from('settings').select('value').eq('key', key).single()
+    if (data?.value) {
+      await editMessageReplyMarkup(Number(owner.telegram_id), Number(data.value), `Order #${shortId} — ${label}`)
+      await supabaseAdmin.from('settings').delete().eq('key', key)
+    }
+  }
+}
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending:     ['confirmed', 'cancelled'],
@@ -103,6 +125,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     })
 
     const shortId = params.id.slice(-6).toUpperCase()
+
+    // Remove action buttons from owner's notification message
+    await clearOwnerButtons(params.id, shortId, status as OrderStatus)
 
     // On confirmed: notify owner only (they decide whether to handle or delegate)
     if (status === 'confirmed') {

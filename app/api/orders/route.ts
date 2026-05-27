@@ -147,10 +147,29 @@ export async function POST(req: NextRequest) {
   const scheduleNote = scheduled_at
     ? `\n🕐 Scheduled: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
     : '\n⚡ ASAP'
-  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💵 $${Number(order.total).toFixed(2)}${scheduleNote}\n\nGo to admin to confirm.`
-  await Promise.allSettled(
-    (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
+  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💵 $${Number(order.total).toFixed(2)}${scheduleNote}`
+  const ownerResults = await Promise.allSettled(
+    (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
+          { text: '🛵 Delegate', callback_data: `delegate_order:${order.id}` },
+          { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
+        ]],
+      },
+    }))
   )
+  // Store message_ids so we can edit them later (remove buttons when order is handled)
+  const ownerList = owners ?? []
+  for (let i = 0; i < ownerList.length; i++) {
+    const result = ownerResults[i]
+    if (result.status === 'fulfilled') {
+      await supabaseAdmin.from('settings').upsert(
+        { key: `owner_msg:${order.id}:${ownerList[i].telegram_id}`, value: String(result.value.message_id) },
+        { onConflict: 'key' }
+      )
+    }
+  }
 
   // Notify customer — order received, pending confirmation
   const scheduleCustomerNote = scheduled_at

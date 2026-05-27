@@ -1,6 +1,6 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
-import { sendMessage, answerCallbackQuery } from '@/lib/telegram'
+import { sendMessage, answerCallbackQuery, editMessageReplyMarkup } from '@/lib/telegram'
 import type { Driver, User, QRCode, Order } from '@/types'
 
 export async function handleUpdate(update: TelegramBot.Update) {
@@ -197,6 +197,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     )
 
     await notifyCustomer(updated.user_id, `✅ Your order #${shortId} has been confirmed!`)
+    await clearOwnerButtons(orderId, `✅ Order #${shortId} confirmed`)
     return
   }
 
@@ -237,6 +238,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     )
 
     await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
+    await clearOwnerButtons(orderId, `🍳 Order #${shortId} — you're handling it`)
     return
   }
 
@@ -424,7 +426,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     )
 
     await notifyCustomer(takenOrder.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
-    await notifyOwners(`🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${takenOrder.delivery_address}`)
+    await clearOwnerButtons(orderId, `🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}`)
     return
   }
 
@@ -470,7 +472,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     )
 
     await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
-    await notifyOwners(`✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${updated.delivery_address}`)
+    await clearOwnerButtons(orderId, `✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}`)
     return
   }
 
@@ -559,18 +561,47 @@ async function handleRefuseReason(chatId: number, telegramId: string, driver: Dr
   const shortId = orderId.slice(-6).toUpperCase()
   await sendMessage(chatId, `OK, order #${shortId} has been returned. The admin will be notified.`)
 
-  // Notify all owners
-  await notifyOwners(
-    `⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 Reason: "${reason}"\n📍 ${order?.delivery_address ?? ''}\n\nPlease reassign from the admin.`
-  )
+  await clearOwnerButtons(orderId, `⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 "${reason}"\n\nPlease reassign from the admin.`)
 }
 
-async function notifyOwners(msg: string) {
+async function notifyOwners(msg: string, orderId?: string, withButtons?: { inline_keyboard: { text: string; callback_data: string }[][] }) {
   const { data: owners } = await supabaseAdmin
     .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
-  await Promise.allSettled(
-    (owners ?? []).map((o: { telegram_id: string }) => sendMessage(Number(o.telegram_id), msg))
+
+  const results = await Promise.allSettled(
+    (owners ?? []).map((o: { telegram_id: string }) =>
+      sendMessage(Number(o.telegram_id), msg, withButtons ? { reply_markup: withButtons } : undefined)
+    )
   )
+
+  // Store message_ids so we can edit them later (e.g. remove buttons when order is taken)
+  if (orderId) {
+    const ownerList = owners ?? []
+    for (let i = 0; i < ownerList.length; i++) {
+      const result = results[i]
+      if (result.status === 'fulfilled') {
+        const sentMsg = result.value
+        await supabaseAdmin.from('settings').upsert(
+          { key: `owner_msg:${orderId}:${ownerList[i].telegram_id}`, value: String(sentMsg.message_id) },
+          { onConflict: 'key' }
+        )
+      }
+    }
+  }
+}
+
+async function clearOwnerButtons(orderId: string, statusText: string) {
+  const { data: owners } = await supabaseAdmin
+    .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
+
+  for (const owner of owners ?? []) {
+    const key = `owner_msg:${orderId}:${owner.telegram_id}`
+    const { data } = await supabaseAdmin.from('settings').select('value').eq('key', key).single()
+    if (data?.value) {
+      await editMessageReplyMarkup(Number(owner.telegram_id), Number(data.value), statusText)
+      await supabaseAdmin.from('settings').delete().eq('key', key)
+    }
+  }
 }
 
 async function getDriver(telegramId: string): Promise<Driver | null> {
