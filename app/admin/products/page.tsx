@@ -43,7 +43,7 @@ export default async function ProductsPage() {
           {cat.products.length === 0 ? (
             <p className="px-4 py-4 text-sm text-gray-400">No products</p>
           ) : (
-            <div className="grid grid-cols-3 gap-3 p-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3">
               {cat.products.map((product) => (
                 <div key={product.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden flex flex-col">
                   <div className="aspect-square w-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center overflow-hidden">

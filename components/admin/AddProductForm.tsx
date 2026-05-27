@@ -42,7 +42,7 @@ export default function AddProductForm({ categories }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full max-w-md shadow-xl">
             <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-4">New product</h3>
             {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
