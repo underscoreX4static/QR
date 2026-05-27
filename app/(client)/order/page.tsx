@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import CatalogueView from '@/components/client/CatalogueView'
 import CartView from '@/components/client/CartView'
 import OrderConfirmation from '@/components/client/OrderConfirmation'
+import Dialog from '@/components/ui/Dialog'
 import type { Order } from '@/types'
 import type { Cart } from '@/lib/cart'
 import { cartCount } from '@/lib/cart'
@@ -54,6 +55,7 @@ function OrderApp() {
   const [cart, setCart] = useState<Cart>({ items: [], qrSlug })
   const [isOrdering, setIsOrdering] = useState(false)
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null)
+  const [alertMsg, setAlertMsg] = useState('')
 
   // Fetch catalogue + QR validation
   useEffect(() => {
@@ -113,12 +115,7 @@ function OrderApp() {
 
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
     if (!tgUser?.id) {
-      const msg = 'Please open this app from Telegram to place an order.'
-      if (window.Telegram?.WebApp?.showAlert) {
-        window.Telegram.WebApp.showAlert(msg)
-      } else {
-        alert(msg)
-      }
+      setAlertMsg('Please open this app from Telegram to place an order.')
       return
     }
 
@@ -144,12 +141,7 @@ function OrderApp() {
       const json = await res.json()
 
       if (!res.ok) {
-        const errMsg = json.error ?? 'Failed to place order.'
-        if (window.Telegram?.WebApp?.showAlert) {
-          window.Telegram.WebApp.showAlert(errMsg)
-        } else {
-          alert(errMsg)
-        }
+        setAlertMsg(json.error ?? 'Failed to place order.')
         return
       }
 
@@ -157,16 +149,21 @@ function OrderApp() {
       setCart({ items: [], qrSlug })
       setView('confirmation')
     } catch {
-      const errMsg = 'Connection error. Please try again.'
-      if (window.Telegram?.WebApp?.showAlert) {
-        window.Telegram.WebApp.showAlert(errMsg)
-      } else {
-        alert(errMsg)
-      }
+      setAlertMsg('Connection error. Please try again.')
     } finally {
       setIsOrdering(false)
     }
   }, [data, cart, qrSlug])
+
+  const alertDialog = (
+    <Dialog
+      open={!!alertMsg}
+      title="Notice"
+      message={alertMsg}
+      variant="alert"
+      onConfirm={() => setAlertMsg('')}
+    />
+  )
 
   if (view === 'loading') {
     return (
@@ -199,17 +196,22 @@ function OrderApp() {
 
   if (view === 'cart') {
     return (
-      <CartView
-        cart={cart}
-        onCartChange={setCart}
-        onBack={() => setView('catalogue')}
-        onOrder={handleOrder}
-        isLoading={isOrdering}
-      />
+      <>
+        {alertDialog}
+        <CartView
+          cart={cart}
+          onCartChange={setCart}
+          onBack={() => setView('catalogue')}
+          onOrder={handleOrder}
+          isLoading={isOrdering}
+        />
+      </>
     )
   }
 
   return (
+    <>
+    {alertDialog}
     <div>
       {data?.partner && (
         <div className="px-4 py-3 bg-white border-b border-gray-100">
@@ -224,6 +226,7 @@ function OrderApp() {
         onCheckout={() => setView('cart')}
       />
     </div>
+    </>
   )
 }
 

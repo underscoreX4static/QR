@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { Order, OrderItem, Variant, OrderStatus, Driver } from '@/types'
+import Dialog from '@/components/ui/Dialog'
 
 interface StatusHistoryRow {
   order_id: string
@@ -85,6 +86,7 @@ function OrderCard({
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
   const [showChecklist, setShowChecklist] = useState(false)
   const [showAssign, setShowAssign] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   const externalDrivers = drivers.filter((d) => !d.is_owner)
   const isDelegated = order.history?.some((h) => h.changed_by === 'delegated')
@@ -92,6 +94,18 @@ function OrderCard({
   const showWaze = ['confirmed', 'preparing'].includes(order.status) && order.partner?.address
 
   return (
+    <>
+    <Dialog
+      open={showCancelDialog}
+      title="Cancel order"
+      message="Reason for cancellation? (optional, will be sent to customer)"
+      variant="prompt"
+      confirmLabel="Cancel order"
+      confirmClass="bg-red-600 hover:bg-red-700 text-white"
+      promptPlaceholder="e.g. Out of stock, delivery area unavailable…"
+      onConfirm={(reason) => { setShowCancelDialog(false); onPatch(order.id, 'cancelled', reason || undefined) }}
+      onCancel={() => setShowCancelDialog(false)}
+    />
     <div className="p-4 space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
@@ -261,10 +275,7 @@ function OrderCard({
 
               {/* Cancel */}
               <button
-                onClick={() => {
-                  const reason = window.prompt('Reason for cancellation? (will be sent to customer)')
-                  if (reason !== null) onPatch(order.id, 'cancelled', reason || undefined)
-                }}
+                onClick={() => setShowCancelDialog(true)}
                 disabled={busy}
                 className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
               >
@@ -275,6 +286,7 @@ function OrderCard({
         </div>
       </div>
     </div>
+    </>
   )
 }
 

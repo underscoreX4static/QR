@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import type { Order, OrderStatus } from '@/types'
+import Dialog from '@/components/ui/Dialog'
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   pending:    'confirmed',
@@ -23,8 +24,8 @@ export default function OrderActions({ order }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [currentStatus, setCurrentStatus] = useState<OrderStatus>(order.status)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
-  // Sync with real DB status on mount in case page was served stale from cache
   useEffect(() => {
     fetch(`/api/orders/${order.id}`)
       .then((r) => r.ok ? r.json() : null)
@@ -57,24 +58,36 @@ export default function OrderActions({ order }: Props) {
   if (!next) return null
 
   return (
-    <div className="flex flex-col gap-1">
-      {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => patch(next)}
-          disabled={loading}
-          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
-        >
-          {loading ? '...' : NEXT_LABEL[currentStatus]}
-        </button>
-        <button
-          onClick={() => { if (confirm('Cancel this order?')) patch('cancelled') }}
-          disabled={loading}
-          className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-        >
-          Cancel
-        </button>
+    <>
+      <Dialog
+        open={showCancelDialog}
+        title="Cancel order"
+        message="Cancel this order? The customer will be notified."
+        variant="confirm"
+        confirmLabel="Cancel order"
+        confirmClass="bg-red-600 hover:bg-red-700 text-white"
+        onConfirm={() => { setShowCancelDialog(false); patch('cancelled') }}
+        onCancel={() => setShowCancelDialog(false)}
+      />
+      <div className="flex flex-col gap-1">
+        {error && <p className="text-xs text-red-600 dark:text-red-400">{error}</p>}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => patch(next)}
+            disabled={loading}
+            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
+          >
+            {loading ? '...' : NEXT_LABEL[currentStatus]}
+          </button>
+          <button
+            onClick={() => setShowCancelDialog(true)}
+            disabled={loading}
+            className="px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
