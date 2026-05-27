@@ -427,6 +427,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     await notifyCustomer(takenOrder.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
     await clearOwnerButtons(orderId, `🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}`)
+    await notifyOwners(`🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${takenOrder.delivery_address}`)
     return
   }
 
@@ -473,6 +474,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
     await clearOwnerButtons(orderId, `✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}`)
+    await notifyOwners(`✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}`)
     return
   }
 
@@ -551,43 +553,24 @@ async function handleRefuseReason(chatId: number, telegramId: string, driver: Dr
   await supabaseAdmin.from('settings').delete().eq('key', `pending_refuse:${telegramId}`)
 
   // Free the order (remove driver assignment)
-  const { data: order } = await supabaseAdmin
+  await supabaseAdmin
     .from('orders')
     .update({ driver_id: null })
     .eq('id', orderId)
-    .select('id,delivery_address,total')
-    .single()
 
   const shortId = orderId.slice(-6).toUpperCase()
   await sendMessage(chatId, `OK, order #${shortId} has been returned. The admin will be notified.`)
 
-  await clearOwnerButtons(orderId, `⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 "${reason}"\n\nPlease reassign from the admin.`)
+  await clearOwnerButtons(orderId, `⚠️ Order #${shortId} refused`)
+  await notifyOwners(`⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 "${reason}"\n\nPlease reassign from the admin.`)
 }
 
-async function notifyOwners(msg: string, orderId?: string, withButtons?: { inline_keyboard: { text: string; callback_data: string }[][] }) {
+async function notifyOwners(msg: string) {
   const { data: owners } = await supabaseAdmin
     .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
-
-  const results = await Promise.allSettled(
-    (owners ?? []).map((o: { telegram_id: string }) =>
-      sendMessage(Number(o.telegram_id), msg, withButtons ? { reply_markup: withButtons } : undefined)
-    )
+  await Promise.allSettled(
+    (owners ?? []).map((o: { telegram_id: string }) => sendMessage(Number(o.telegram_id), msg))
   )
-
-  // Store message_ids so we can edit them later (e.g. remove buttons when order is taken)
-  if (orderId) {
-    const ownerList = owners ?? []
-    for (let i = 0; i < ownerList.length; i++) {
-      const result = results[i]
-      if (result.status === 'fulfilled') {
-        const sentMsg = result.value
-        await supabaseAdmin.from('settings').upsert(
-          { key: `owner_msg:${orderId}:${ownerList[i].telegram_id}`, value: String(sentMsg.message_id) },
-          { onConflict: 'key' }
-        )
-      }
-    }
-  }
 }
 
 async function clearOwnerButtons(orderId: string, statusText: string) {
