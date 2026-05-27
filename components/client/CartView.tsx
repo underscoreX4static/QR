@@ -114,36 +114,8 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
     review: 'Review & confirm',
   }
 
-  // ── Store closed banner ────────────────────────────────────────────────────
-  if (!storeOpen && step === 'cart') {
-    return (
-      <div className="flex flex-col h-screen bg-gray-50">
-        <div className="flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-100">
-          <button onClick={onBack} className="text-blue-600 font-medium">← Back</button>
-          <h1 className="font-semibold text-gray-900 text-lg">My cart</h1>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-4">
-          <div className="text-5xl">🕙</div>
-          <h2 className="text-xl font-bold text-gray-900">We&apos;re closed right now</h2>
-          <p className="text-gray-500 text-sm">
-            We&apos;re not taking orders at the moment. We open {nextOpen}.
-          </p>
-          <p className="text-gray-400 text-xs">
-            Mon–Fri 10:00 AM – 10:00 PM · Sat–Sun 11:00 AM – 12:00 AM
-          </p>
-          <div className="bg-blue-50 rounded-2xl px-4 py-3 w-full text-sm text-blue-700">
-            You can still <span className="font-semibold">schedule a delivery</span> for when we open next.
-          </div>
-          <button
-            onClick={() => setStep('address')}
-            className="w-full bg-blue-600 text-white rounded-2xl py-4 font-semibold"
-          >
-            Schedule a delivery
-          </button>
-        </div>
-      </div>
-    )
-  }
+  // ── Store closed: force scheduled mode ────────────────────────────────────
+  // Don't block the flow — just show a banner on the cart step and force scheduled on step 3
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -211,6 +183,16 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                   </div>
                 </div>
 
+                {/* Store closed banner */}
+                {!storeOpen && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 flex items-start gap-2">
+                    <span className="text-lg leading-none mt-0.5">🕙</span>
+                    <p className="text-sm text-blue-800">
+                      <span className="font-bold">We&apos;re closed right now.</span> Opens {nextOpen}. You can schedule a delivery for later.
+                    </p>
+                  </div>
+                )}
+
                 {/* Cash reminder on cart step */}
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2">
                   <span className="text-lg leading-none mt-0.5">💵</span>
@@ -220,10 +202,13 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 </div>
 
                 <button
-                  onClick={() => setStep('address')}
+                  onClick={() => {
+                    if (!storeOpen) setDeliveryType('scheduled')
+                    setStep('address')
+                  }}
                   className="w-full bg-blue-600 text-white rounded-2xl py-4 font-semibold text-base active:scale-95 transition-transform"
                 >
-                  Continue — ${total.toFixed(2)}
+                  {storeOpen ? `Continue — $${total.toFixed(2)}` : `Schedule a delivery — $${total.toFixed(2)}`}
                 </button>
               </>
             )}
@@ -321,11 +306,19 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
         {/* ── STEP 3: Schedule ─────────────────────────────────────────────── */}
         {step === 'schedule' && (
           <div className="space-y-4">
-            {/* ASAP option */}
+            {!storeOpen && (
+              <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-800">
+                🕙 <span className="font-bold">We&apos;re closed.</span> Opens {nextOpen} — please schedule a time slot below.
+              </div>
+            )}
+            {/* ASAP option — disabled when store is closed */}
             <button
-              onClick={() => setDeliveryType('asap')}
+              onClick={() => { if (storeOpen) setDeliveryType('asap') }}
+              disabled={!storeOpen}
               className={`w-full rounded-2xl p-4 border-2 text-left transition-all ${
-                deliveryType === 'asap'
+                !storeOpen
+                  ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
+                  : deliveryType === 'asap'
                   ? 'border-blue-600 bg-blue-50'
                   : 'border-gray-200 bg-white'
               }`}
