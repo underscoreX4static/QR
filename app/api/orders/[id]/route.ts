@@ -26,12 +26,12 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select()
+    .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
     .eq('order_id', params.id)
 
   const { data: history } = await supabaseAdmin
     .from('order_status_history')
-    .select()
+    .select('order_id,status,changed_by,changed_at')
     .eq('order_id', params.id)
     .order('changed_at', { ascending: true })
 

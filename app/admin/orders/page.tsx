@@ -301,8 +301,6 @@ export default function OrdersPage() {
 
   useEffect(() => {
     load()
-    const interval = setInterval(() => load(true), 15000)
-    return () => clearInterval(interval)
   }, [load])
 
   const patch = async (orderId: string, status: OrderStatus, cancelReason?: string) => {
