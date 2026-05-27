@@ -213,12 +213,6 @@ function OrderApp() {
     <>
     {alertDialog}
     <div>
-      {data?.partner && (
-        <div className="px-4 py-3 bg-white border-b border-gray-100">
-          <p className="text-xs text-gray-400 uppercase tracking-wide">Delivery from</p>
-          <h1 className="font-bold text-gray-900">{data.partner.name}</h1>
-        </div>
-      )}
       <CatalogueView
         catalogue={data?.catalogue ?? []}
         cart={cart}
