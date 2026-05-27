@@ -89,5 +89,7 @@ export async function GET() {
     history: (allHistory ?? []).filter((h) => h.order_id === order.id),
   }))
 
-  return NextResponse.json({ orders: ordersWithItems, drivers: driverList })
+  return NextResponse.json({ orders: ordersWithItems, drivers: driverList }, {
+    headers: { 'Cache-Control': 'no-store, max-age=0' },
+  })
 }

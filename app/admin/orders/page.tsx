@@ -90,7 +90,7 @@ function OrderCard({
 
   const externalDrivers = drivers.filter((d) => !d.is_owner)
   const isDelegated = order.history?.some((h) => h.changed_by === 'delegated')
-  const canAssign = ['confirmed', 'preparing'].includes(order.status) && !order.driver_id
+  const canAssign = ['pending', 'confirmed', 'preparing'].includes(order.status) && !order.driver_id
   const showWaze = ['confirmed', 'preparing'].includes(order.status) && order.partner?.address
 
   return (
@@ -301,7 +301,7 @@ export default function OrdersPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch('/api/admin/orders', { cache: 'no-store', headers: { 'x-no-cache': Date.now().toString() } })
+      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         console.error('Admin orders error:', json.error)

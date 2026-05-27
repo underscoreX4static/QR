@@ -12,8 +12,8 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     .single<Pick<Order, 'id' | 'status' | 'delivery_address' | 'total' | 'notes'>>()
 
   if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 })
-  if (!['confirmed', 'preparing'].includes(order.status)) {
-    return NextResponse.json({ error: 'Order must be confirmed or preparing to assign' }, { status: 400 })
+  if (!['pending', 'confirmed', 'preparing'].includes(order.status)) {
+    return NextResponse.json({ error: 'Order must be active to assign' }, { status: 400 })
   }
 
   // Fetch items for the message
