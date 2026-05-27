@@ -156,6 +156,11 @@ export function toBrisbaneTime(date: Date): Date {
 }
 
 export async function isStoreOpen(now: Date = new Date()): Promise<boolean> {
+  const { supabaseAdmin } = await import('@/lib/supabase')
+  const { data } = await supabaseAdmin.from('settings').select('value').eq('key', 'store_force_status').single()
+  if (data?.value === 'open') return true
+  if (data?.value === 'closed') return false
+
   const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const hours = local.getUTCHours() + local.getUTCMinutes() / 60

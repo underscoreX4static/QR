@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { WeekHours, DayHours } from '@/app/api/settings/hours/route'
 
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const DAY_NAMES_FULL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 const DEFAULT_HOURS: WeekHours = {
   '0': { open: 11, close: 24 },
@@ -16,25 +17,29 @@ const DEFAULT_HOURS: WeekHours = {
 }
 
 function fmt(h: number) {
-  if (h === 0) return '12:00 AM'
-  if (h === 12) return '12:00 PM'
-  if (h === 24) return 'Midnight'
-  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`
+  if (h === 0 || h === 24) return h === 0 ? '12 AM' : 'Midnight'
+  if (h === 12) return '12 PM'
+  return h < 12 ? `${h} AM` : `${h - 12} PM`
 }
-
-const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => i) // 0..24
 
 export default function SettingsPage() {
   const [hours, setHours] = useState<WeekHours>(DEFAULT_HOURS)
+  const [storeForceOpen, setStoreForceOpen] = useState<boolean | null>(null) // null = follow schedule
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [toggleLoading, setToggleLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/settings/hours', { cache: 'no-store' })
-    const json = res.ok ? await res.json() : { hours: DEFAULT_HOURS }
-    setHours(json.hours ?? DEFAULT_HOURS)
+    const [hoursRes, statusRes] = await Promise.all([
+      fetch('/api/settings/hours', { cache: 'no-store' }),
+      fetch('/api/settings/store-status', { cache: 'no-store' }),
+    ])
+    const hoursJson = hoursRes.ok ? await hoursRes.json() : { hours: DEFAULT_HOURS }
+    const statusJson = statusRes.ok ? await statusRes.json() : { forceOpen: null }
+    setHours(hoursJson.hours ?? DEFAULT_HOURS)
+    setStoreForceOpen(statusJson.forceOpen ?? null)
     setLoading(false)
   }, [])
 
@@ -54,23 +59,85 @@ export default function SettingsPage() {
       body: JSON.stringify({ hours }),
     })
     const json = await res.json()
-    if (!res.ok) {
-      setError(json.error ?? 'Failed to save')
-    } else {
-      setSaved(true)
-    }
+    if (!res.ok) setError(json.error ?? 'Failed to save')
+    else setSaved(true)
     setSaving(false)
   }
 
+  const toggleStore = async (value: boolean | null) => {
+    setToggleLoading(true)
+    const res = await fetch('/api/settings/store-status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forceOpen: value }),
+    })
+    if (res.ok) setStoreForceOpen(value)
+    setToggleLoading(false)
+  }
+
+  const storeStatusLabel = storeForceOpen === true
+    ? { text: 'Open (forced)', color: 'bg-green-500' }
+    : storeForceOpen === false
+    ? { text: 'Closed (forced)', color: 'bg-red-500' }
+    : { text: 'Auto (schedule)', color: 'bg-blue-500' }
+
   return (
-    <div className="space-y-6 max-w-lg">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Settings</h2>
+    <div className="space-y-5 max-w-lg">
+      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Settings</h2>
+
+      {/* ── Store status toggle ── */}
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100">Store status</h3>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`w-2 h-2 rounded-full ${storeStatusLabel.color}`} />
+              <span className="text-xs text-gray-500 dark:text-gray-400">{storeStatusLabel.text}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            onClick={() => toggleStore(true)}
+            disabled={toggleLoading || loading}
+            className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              storeForceOpen === true
+                ? 'bg-green-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-700'
+            }`}
+          >
+            🟢 Force open
+          </button>
+          <button
+            onClick={() => toggleStore(null)}
+            disabled={toggleLoading || loading}
+            className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              storeForceOpen === null
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700'
+            }`}
+          >
+            🔄 Auto
+          </button>
+          <button
+            onClick={() => toggleStore(false)}
+            disabled={toggleLoading || loading}
+            className={`py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              storeForceOpen === false
+                ? 'bg-red-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-700'
+            }`}
+          >
+            🔴 Force close
+          </button>
+        </div>
       </div>
 
+      {/* ── Store hours ── */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Store hours</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100">Opening hours</h3>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Brisbane time (AEST, UTC+10)</p>
         </div>
 
@@ -82,34 +149,42 @@ export default function SettingsPage() {
               const { open, close } = hours[day]
               const isValid = open < close
               return (
-                <div key={day} className="px-4 py-3 flex items-center gap-3">
-                  <span className="w-24 text-sm font-medium text-gray-700 dark:text-gray-300 shrink-0">
+                <div key={day} className={`px-4 py-3 flex items-center gap-3 ${!isValid ? 'bg-red-50 dark:bg-red-900/10' : ''}`}>
+                  <span className="w-8 text-xs font-bold text-gray-500 dark:text-gray-400 shrink-0 uppercase">
                     {DAY_NAMES[Number(day)]}
                   </span>
+                  <span className="hidden sm:block w-20 text-sm text-gray-500 dark:text-gray-400 shrink-0">
+                    {DAY_NAMES_FULL[Number(day)]}
+                  </span>
                   <div className="flex items-center gap-2 flex-1">
-                    <select
-                      value={open}
-                      onChange={(e) => setDay(day, 'open', Number(e.target.value))}
-                      className="flex-1 text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {HOUR_OPTIONS.slice(0, 24).map((h) => (
-                        <option key={h} value={h}>{fmt(h)}</option>
-                      ))}
-                    </select>
-                    <span className="text-xs text-gray-400 shrink-0">to</span>
-                    <select
-                      value={close}
-                      onChange={(e) => setDay(day, 'close', Number(e.target.value))}
-                      className="flex-1 text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {HOUR_OPTIONS.slice(1).map((h) => (
-                        <option key={h} value={h}>{fmt(h)}</option>
-                      ))}
-                    </select>
+                    <div className="flex-1 flex items-center gap-1 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={23}
+                        value={open}
+                        onChange={(e) => setDay(day, 'open', Math.min(23, Math.max(0, Number(e.target.value))))}
+                        className="w-8 bg-transparent text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none text-center"
+                      />
+                      <span className="text-xs text-gray-400">{open < 12 ? 'AM' : 'PM'}</span>
+                    </div>
+                    <span className="text-xs text-gray-300 dark:text-gray-600 shrink-0">→</span>
+                    <div className="flex-1 flex items-center gap-1 bg-gray-50 dark:bg-gray-800 rounded-xl px-3 py-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={24}
+                        value={close}
+                        onChange={(e) => setDay(day, 'close', Math.min(24, Math.max(1, Number(e.target.value))))}
+                        className="w-8 bg-transparent text-sm font-semibold text-gray-900 dark:text-gray-100 focus:outline-none text-center"
+                      />
+                      <span className="text-xs text-gray-400">{close === 24 ? '' : close <= 12 ? 'AM' : 'PM'}</span>
+                    </div>
                   </div>
-                  {!isValid && (
-                    <span className="text-xs text-red-500 shrink-0">!</span>
-                  )}
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0 w-20 text-right hidden sm:block">
+                    {fmt(open)} – {fmt(close)}
+                  </span>
+                  {!isValid && <span className="text-xs text-red-500 shrink-0">!</span>}
                 </div>
               )
             })}
@@ -117,15 +192,16 @@ export default function SettingsPage() {
         )}
 
         <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          {saved && <p className="text-sm text-green-600 dark:text-green-400">Saved ✓</p>}
-          {!error && !saved && <span />}
+          <span className="text-sm">
+            {error && <span className="text-red-500">{error}</span>}
+            {saved && <span className="text-green-600 dark:text-green-400">Saved ✓</span>}
+          </span>
           <button
             onClick={save}
             disabled={saving || loading}
             className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-medium disabled:opacity-50 hover:bg-blue-700 transition-colors"
           >
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : 'Save hours'}
           </button>
         </div>
       </div>
