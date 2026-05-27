@@ -34,17 +34,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Resolve user_id from telegram_id if not provided directly
+  // Resolve user_id from telegram_id, creating the user if they don't exist yet
+  // (Mini App users may not have sent /start to the bot)
   let resolvedUserId: string = user_id
   if (!resolvedUserId && telegram_id) {
     const { data: user } = await supabaseAdmin
       .from('users')
+      .upsert(
+        { telegram_id: String(telegram_id), first_name: body.first_name ?? 'Customer' },
+        { onConflict: 'telegram_id', ignoreDuplicates: false }
+      )
       .select('id')
-      .eq('telegram_id', String(telegram_id))
       .single()
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+      return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
     }
     resolvedUserId = user.id
   }

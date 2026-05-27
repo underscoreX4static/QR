@@ -111,10 +111,14 @@ function OrderApp() {
   const handleOrder = useCallback(async (address: string, notes: string, scheduledAt?: string) => {
     if (!data || cartCount(cart) === 0) return
 
-    // Get Telegram user from Mini App SDK
     const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
-    if (!tgUser) {
-      window.Telegram?.WebApp?.showAlert('Open this app from Telegram.')
+    if (!tgUser?.id) {
+      const msg = 'Please open this app from Telegram to place an order.'
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(msg)
+      } else {
+        alert(msg)
+      }
       return
     }
 
@@ -125,6 +129,7 @@ function OrderApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegram_id: String(tgUser.id),
+          first_name: tgUser.first_name ?? null,
           qr_code_id: data.qrCode.id,
           delivery_address: address,
           notes: notes || null,
@@ -139,7 +144,12 @@ function OrderApp() {
       const json = await res.json()
 
       if (!res.ok) {
-        window.Telegram?.WebApp?.showAlert(json.error ?? 'Failed to place order.')
+        const errMsg = json.error ?? 'Failed to place order.'
+        if (window.Telegram?.WebApp?.showAlert) {
+          window.Telegram.WebApp.showAlert(errMsg)
+        } else {
+          alert(errMsg)
+        }
         return
       }
 
@@ -147,7 +157,12 @@ function OrderApp() {
       setCart({ items: [], qrSlug })
       setView('confirmation')
     } catch {
-      window.Telegram?.WebApp?.showAlert('Connection error. Please try again.')
+      const errMsg = 'Connection error. Please try again.'
+      if (window.Telegram?.WebApp?.showAlert) {
+        window.Telegram.WebApp.showAlert(errMsg)
+      } else {
+        alert(errMsg)
+      }
     } finally {
       setIsOrdering(false)
     }
