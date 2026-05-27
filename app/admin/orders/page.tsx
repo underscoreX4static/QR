@@ -319,9 +319,8 @@ export default function OrdersPage() {
       setActionLoading(null)
       return
     }
-    // Optimistic update so UI reflects change immediately even if reload is stale
-    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
-    await load(true)
+    // Update directly from PATCH response — don't reload (Vercel caches the list endpoint)
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...json.order, items: o.items, history: o.history, driver_name: o.driver_name, partner: o.partner } : o))
     setActionLoading(null)
   }
 
@@ -332,7 +331,11 @@ export default function OrdersPage() {
     if (!res.ok) {
       setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to broadcast' }))
     } else {
-      await load(true)
+      // Mark as delegated locally so button hides immediately
+      setOrders((prev) => prev.map((o) => o.id === orderId ? {
+        ...o,
+        history: [...(o.history ?? []), { order_id: orderId, status: o.status, changed_by: 'delegated', changed_at: new Date().toISOString() }],
+      } : o))
     }
     setActionLoading(null)
   }
@@ -350,8 +353,12 @@ export default function OrdersPage() {
       setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to assign' }))
     } else {
       const driverName = drivers.find((d) => d.id === driverId)
-      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, driver_id: driverId, driver_name: driverName ? `${driverName.first_name} ${driverName.last_name ?? ''}`.trim() : 'Driver' } : o))
-      await load(true)
+      setOrders((prev) => prev.map((o) => o.id === orderId ? {
+        ...o,
+        ...json.order,
+        driver_name: driverName ? `${driverName.first_name} ${driverName.last_name ?? ''}`.trim() : 'Driver',
+        items: o.items, history: o.history, partner: o.partner,
+      } : o))
     }
     setActionLoading(null)
   }
