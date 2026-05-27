@@ -289,7 +289,7 @@ export default function OrdersPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch('/api/admin/orders', { cache: 'no-store' })
+      const res = await fetch('/api/admin/orders', { cache: 'no-store', headers: { 'x-no-cache': Date.now().toString() } })
       if (!res.ok) return
       const json = await res.json()
       setOrders(json.orders ?? [])
@@ -319,6 +319,8 @@ export default function OrdersPage() {
       setActionLoading(null)
       return
     }
+    // Optimistic update so UI reflects change immediately even if reload is stale
+    setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, status } : o))
     await load(true)
     setActionLoading(null)
   }
@@ -347,6 +349,8 @@ export default function OrdersPage() {
     if (!res.ok) {
       setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to assign' }))
     } else {
+      const driverName = drivers.find((d) => d.id === driverId)
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, driver_id: driverId, driver_name: driverName ? `${driverName.first_name} ${driverName.last_name ?? ''}`.trim() : 'Driver' } : o))
       await load(true)
     }
     setActionLoading(null)

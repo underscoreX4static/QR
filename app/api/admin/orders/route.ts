@@ -45,7 +45,7 @@ export async function GET() {
       .from('drivers')
       .select('id,first_name,last_name,is_owner,is_active')
       .eq('is_active', true)
-      .returns<Pick<Driver, 'id' | 'first_name' | 'last_name' | 'is_owner' | 'is_active'>>(),
+      .returns<Pick<Driver, 'id' | 'first_name' | 'last_name' | 'is_owner' | 'is_active'>[]>(),
     supabaseAdmin
       .from('qr_codes')
       .select('id,partner_id')
