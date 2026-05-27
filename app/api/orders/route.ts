@@ -38,26 +38,37 @@ export async function POST(req: NextRequest) {
   // (Mini App users may not have sent /start to the bot)
   let resolvedUserId: string = user_id
   if (!resolvedUserId && telegram_id) {
-    const { data: user } = await supabaseAdmin
+    const tidStr = String(telegram_id)
+
+    // Try existing user first
+    const { data: existing } = await supabaseAdmin
       .from('users')
-      .upsert(
-        { telegram_id: String(telegram_id), first_name: body.first_name ?? 'Customer' },
-        { onConflict: 'telegram_id', ignoreDuplicates: false }
-      )
       .select('id')
+      .eq('telegram_id', tidStr)
       .single()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
+    if (existing) {
+      resolvedUserId = existing.id
+    } else {
+      // Create new user
+      const { data: created } = await supabaseAdmin
+        .from('users')
+        .insert({ telegram_id: tidStr, first_name: body.first_name ?? 'Customer' })
+        .select('id')
+        .single()
+
+      if (!created) {
+        return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
+      }
+      resolvedUserId = created.id
     }
-    resolvedUserId = user.id
   }
 
   // Fetch variants to get current prices
   const variantIds: string[] = items.map((i: { variant_id: string }) => i.variant_id)
   const { data: variants } = await supabaseAdmin
     .from('variants')
-    .select()
+    .select('id,product_id,size,price_sell,price_cost,stock_qty,is_active')
     .in('id', variantIds)
     .eq('is_active', true)
 
@@ -140,6 +151,13 @@ export async function POST(req: NextRequest) {
   await Promise.allSettled(
     (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
   )
+
+  // Notify customer — order received, pending confirmation
+  const scheduleCustomerNote = scheduled_at
+    ? `\n🕐 Scheduled for: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
+    : '\n⚡ ASAP delivery'
+  const customerMsg = `🛒 Order received! #${shortId}\n💵 $${Number(order.total).toFixed(2)} cash on delivery${scheduleCustomerNote}\n\nWe'll confirm your order shortly.`
+  await sendMessage(Number(telegram_id), customerMsg).catch(() => null)
 
   return NextResponse.json({ order }, { status: 201 })
 }
