@@ -11,6 +11,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin/partners':    'Partners',
   '/admin/drivers':     'Drivers',
   '/admin/settlements': 'Settlements',
+  '/admin/settings':    'Settings',
 }
 
 export default function MobileHeader() {

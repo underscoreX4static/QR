@@ -57,8 +57,8 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const [deliveryType, setDeliveryType] = useState<'asap' | 'scheduled'>('asap')
   const [selectedSlot, setSelectedSlot] = useState<DeliverySlot | null>(null)
   const [slots, setSlots] = useState<DeliverySlot[]>([])
-  const storeOpen = isStoreOpen()
-  const nextOpen = getNextOpenTime()
+  const [storeOpen, setStoreOpen] = useState(true)
+  const [nextOpen, setNextOpen] = useState('')
 
   // Cash confirmation
   const [cashConfirmed, setCashConfirmed] = useState(false)
@@ -69,7 +69,11 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
 
   useEffect(() => {
-    setSlots(getAvailableSlots())
+    Promise.all([isStoreOpen(), getNextOpenTime(), getAvailableSlots()]).then(([open, next, s]) => {
+      setStoreOpen(open)
+      setNextOpen(next)
+      setSlots(s)
+    })
   }, [])
 
   // Suburb autocomplete

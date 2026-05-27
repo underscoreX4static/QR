@@ -109,14 +109,44 @@ export function isValidPostcode(postcode: string): boolean {
 }
 
 // ─── Store hours (Brisbane AEST, UTC+10) ──────────────────────────────────────
-// Mon-Fri: 10:00-22:00 | Sat-Sun: 11:00-00:00 (midnight)
 
 export interface StoreHours { open: number; close: number } // hours in 24h
 
-export function getStoreHours(date: Date): StoreHours {
-  const day = date.getDay() // 0=Sun, 6=Sat
-  const isWeekend = day === 0 || day === 6
-  return isWeekend ? { open: 11, close: 24 } : { open: 10, close: 22 }
+const FALLBACK_HOURS: Record<number, StoreHours> = {
+  0: { open: 11, close: 24 }, // Sun
+  1: { open: 10, close: 22 }, // Mon
+  2: { open: 10, close: 22 }, // Tue
+  3: { open: 10, close: 22 }, // Wed
+  4: { open: 10, close: 22 }, // Thu
+  5: { open: 10, close: 22 }, // Fri
+  6: { open: 11, close: 24 }, // Sat
+}
+
+let cachedHours: Record<number, StoreHours> | null = null
+let cacheExpiry = 0
+
+export async function getStoreHoursFromDB(): Promise<Record<number, StoreHours>> {
+  if (cachedHours && Date.now() < cacheExpiry) return cachedHours
+
+  try {
+    const { supabaseAdmin } = await import('@/lib/supabase')
+    const { data } = await supabaseAdmin.from('settings').select('value').eq('key', 'store_hours').single()
+    if (data?.value) {
+      const parsed = JSON.parse(data.value) as Record<string, StoreHours>
+      cachedHours = Object.fromEntries(Object.entries(parsed).map(([k, v]) => [Number(k), v]))
+      cacheExpiry = Date.now() + 5 * 60 * 1000 // 5min cache
+      return cachedHours
+    }
+  } catch {
+    // fall through to default
+  }
+
+  return FALLBACK_HOURS
+}
+
+export function getStoreHours(date: Date, weekHours?: Record<number, StoreHours>): StoreHours {
+  const day = date.getDay()
+  return (weekHours ?? FALLBACK_HOURS)[day] ?? FALLBACK_HOURS[day]
 }
 
 // Returns Brisbane local time from a UTC date
@@ -125,57 +155,53 @@ export function toBrisbaneTime(date: Date): Date {
   return new Date(date.getTime() + 10 * 60 * 60 * 1000)
 }
 
-export function isStoreOpen(now: Date = new Date()): boolean {
+export async function isStoreOpen(now: Date = new Date()): Promise<boolean> {
+  const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const hours = local.getUTCHours() + local.getUTCMinutes() / 60
-  const { open, close } = getStoreHours(local)
+  const { open, close } = getStoreHours(local, weekHours)
   return hours >= open && hours < close
 }
 
-export function getNextOpenTime(now: Date = new Date()): string {
+export async function getNextOpenTime(now: Date = new Date()): Promise<string> {
+  const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const hours = local.getUTCHours() + local.getUTCMinutes() / 60
-  const { open, close } = getStoreHours(local)
+  const { open, close } = getStoreHours(local, weekHours)
 
-  if (hours < open) {
-    // Opens later today
-    return `today at ${open}:00`
-  }
+  if (hours < open) return `today at ${open}:00`
   if (hours >= close) {
-    // Opens tomorrow
     const tomorrow = new Date(local)
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-    const tomorrowDay = tomorrow.getUTCDay()
-    const isWeekend = tomorrowDay === 0 || tomorrowDay === 6
-    const tomorrowOpen = isWeekend ? 11 : 10
+    const tomorrowOpen = getStoreHours(tomorrow, weekHours).open
     return `tomorrow at ${tomorrowOpen}:00`
   }
   return 'soon'
 }
 
 // ─── Scheduled delivery slots ─────────────────────────────────────────────────
-// Min 2h advance. Returns available slots for today + tomorrow.
+// Min 2h advance. Returns available slots for today + next 2 days.
 
 export interface DeliverySlot {
   label: string      // "Today 3:00 PM"
-  value: string      // ISO string (Brisbane local time represented as UTC+10)
+  value: string      // ISO string
   date: Date
 }
 
-export function getAvailableSlots(now: Date = new Date()): DeliverySlot[] {
+export async function getAvailableSlots(now: Date = new Date()): Promise<DeliverySlot[]> {
+  const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
-  const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000) // now + 2h
+  const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000)
 
   for (let dayOffset = 0; dayOffset <= 2; dayOffset++) {
-    // Fresh base date for each day — avoid mutating shared object across iterations
     const base = new Date(local)
     base.setUTCDate(base.getUTCDate() + dayOffset)
     base.setUTCMinutes(0)
     base.setUTCSeconds(0)
     base.setUTCMilliseconds(0)
 
-    const { open, close } = getStoreHours(base)
+    const { open, close } = getStoreHours(base, weekHours)
     const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : base.toLocaleDateString('en-AU', { weekday: 'long' })
 
     for (let h = open; h < close; h++) {
