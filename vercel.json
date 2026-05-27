@@ -1,10 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/broadcast-followup",
-      "schedule": "* * * * *"
-    }
-  ],
   "headers": [
     {
       "source": "/admin/(.*)",
