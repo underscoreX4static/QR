@@ -89,3 +89,4 @@ export async function GET() {
   }))
 
   return NextResponse.json({ orders: ordersWithItems, drivers: driverList })
+}
