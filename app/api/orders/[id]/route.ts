@@ -144,5 +144,44 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     }
   }
 
+  // Notify owners when a driver is assigned
+  if (driver_id) {
+    const shortId = params.id.slice(-6).toUpperCase()
+    const { data: assignedDriver } = await supabaseAdmin
+      .from('drivers')
+      .select('first_name,last_name')
+      .eq('id', driver_id)
+      .single<Pick<Driver, 'first_name' | 'last_name'>>()
+
+    const { data: owners } = await supabaseAdmin
+      .from('drivers')
+      .select('telegram_id')
+      .eq('is_owner', true)
+      .eq('is_active', true)
+      .returns<Pick<Driver, 'telegram_id'>[]>()
+
+    const driverName = assignedDriver
+      ? `${assignedDriver.first_name} ${assignedDriver.last_name ?? ''}`.trim()
+      : 'Unknown driver'
+
+    // Notify owners
+    const ownerMsg = `🛵 Order #${shortId} assigned to ${driverName}\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}`
+    await Promise.allSettled(
+      (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
+    )
+
+    // Notify the assigned driver
+    const { data: driverRecord } = await supabaseAdmin
+      .from('drivers')
+      .select('telegram_id')
+      .eq('id', driver_id)
+      .single<Pick<Driver, 'telegram_id'>>()
+
+    if (driverRecord?.telegram_id) {
+      const driverMsg = `📦 You've been assigned order #${shortId}\n📍 Deliver to: ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)} cash on delivery`
+      await sendMessage(Number(driverRecord.telegram_id), driverMsg).catch(() => null)
+    }
+  }
+
   return NextResponse.json({ order: updated })
 }
