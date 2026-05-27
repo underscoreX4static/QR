@@ -75,7 +75,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
               {count}
             </span>
             <span className="font-semibold text-base">View my cart</span>
-            <span className="font-semibold">{total.toFixed(2)}€</span>
+            <span className="font-semibold">${total.toFixed(2)}</span>
           </button>
         </div>
       )}

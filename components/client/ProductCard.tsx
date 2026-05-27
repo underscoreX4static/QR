@@ -67,7 +67,7 @@ export default function ProductCard({ product, cart, onAdd }: Props) {
           </div>
           <div className="flex items-center justify-between gap-2">
             <span className="font-bold text-gray-900 text-sm">
-              {activeVariants.length > 1 ? `from ${lowestPrice.toFixed(2)}€` : `${lowestPrice.toFixed(2)}€`}
+              {activeVariants.length > 1 ? `from $${lowestPrice.toFixed(2)}` : `$${lowestPrice.toFixed(2)}`}
             </span>
             <button
               onClick={handleTap}
@@ -115,7 +115,7 @@ export default function ProductCard({ product, cart, onAdd }: Props) {
                           {inCart.quantity} in cart
                         </span>
                       )}
-                      <span className="font-bold text-gray-900">{Number(variant.price_sell).toFixed(2)}€</span>
+                      <span className="font-bold text-gray-900">${Number(variant.price_sell).toFixed(2)}</span>
                     </div>
                   </button>
                 )

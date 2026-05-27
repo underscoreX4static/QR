@@ -129,8 +129,8 @@ export default function CatalogueImport() {
                             <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{row.brand}</td>
                             <td className="px-3 py-2 text-gray-700 dark:text-gray-300 whitespace-nowrap max-w-[120px] truncate">{row.product_name}</td>
                             <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{row.variant_size}</td>
-                            <td className="px-3 py-2 text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{row.price_sell}€</td>
-                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{row.price_cost}€</td>
+                            <td className="px-3 py-2 text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">${row.price_sell}</td>
+                            <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">${row.price_cost}</td>
                             <td className="px-3 py-2 text-gray-500 dark:text-gray-400 whitespace-nowrap">{row.stock_qty}</td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               <span className={`px-1.5 py-0.5 rounded-full text-xs ${row.is_active === 'false' || row.is_active === '0' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>

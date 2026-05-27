@@ -62,7 +62,7 @@ export default function SettlementsPage() {
                     {STATUS_LABELS[s.status]}
                   </span>
                 </div>
-                <span className="font-bold text-green-700 dark:text-green-400 shrink-0">{Number(s.payout_amount).toFixed(2)}€</span>
+                <span className="font-bold text-green-700 dark:text-green-400 shrink-0">${Number(s.payout_amount).toFixed(2)}</span>
               </div>
               {s.driver_id && (
                 <p className="text-sm text-gray-700 dark:text-gray-300">{driverMap[s.driver_id] ?? '—'}</p>
@@ -70,7 +70,7 @@ export default function SettlementsPage() {
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-gray-400 dark:text-gray-500">
                   {new Date(s.period_start).toLocaleDateString('en-GB')} → {new Date(s.period_end).toLocaleDateString('en-GB')}
-                  {' · '}cash: {Number(s.total_cash).toFixed(2)}€
+                  {' · '}cash: ${Number(s.total_cash).toFixed(2)}
                 </span>
                 <SettlementActions settlement={s} onAdvanced={load} />
               </div>

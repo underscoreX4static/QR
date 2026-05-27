@@ -63,7 +63,7 @@ export default async function ProductsPage() {
                         {product.variants.map((variant) => (
                           <div key={variant.id} className="flex items-center justify-between gap-1 text-xs">
                             <span className="text-gray-500 dark:text-gray-400 truncate">{variant.size}</span>
-                            <span className="font-semibold text-gray-900 dark:text-gray-100 shrink-0">{Number(variant.price_sell).toFixed(2)}€</span>
+                            <span className="font-semibold text-gray-900 dark:text-gray-100 shrink-0">${Number(variant.price_sell).toFixed(2)}</span>
                           </div>
                         ))}
                       </div>

@@ -10,7 +10,7 @@ export function calculateOrderProfit(items: OrderItem[]): number {
   }, 0)
 }
 
-// Delivery fee split: external driver gets 2€, remaining split equally between owners
+// Delivery fee split: external driver gets $2, remaining split equally between owners
 export const DELIVERY_FEE_DRIVER_SHARE = 2
 
 // Profit split rates

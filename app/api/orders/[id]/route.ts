@@ -113,7 +113,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         .eq('is_active', true)
         .returns<Pick<Driver, 'telegram_id'>[]>()
 
-      const ownerMsg = `✅ Order #${shortId} confirmed\n📍 ${updated.delivery_address}\n💶 ${Number(updated.total).toFixed(2)}€\n\nHandle it yourself or delegate from the admin.`
+      const ownerMsg = `✅ Order #${shortId} confirmed\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}\n\nHandle it yourself or delegate from the admin.`
       await Promise.allSettled(
         (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
       )

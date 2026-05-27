@@ -46,7 +46,7 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
   msg += `📍 ${order.delivery_address}\n`
   if (itemLines) msg += `\n${itemLines}\n`
   if (order.notes) msg += `\n💬 ${order.notes}\n`
-  msg += `\n💶 Total: ${Number(order.total).toFixed(2)}€`
+  msg += `\n💵 Total: $${Number(order.total).toFixed(2)}`
 
   // Send to all non-owner active drivers
   const { data: drivers } = await supabaseAdmin

@@ -121,7 +121,7 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
       msg += `📍 ${order.delivery_address}\n`
       if (itemLines) msg += `\n${itemLines}\n`
       if (order.notes) msg += `\n💬 ${order.notes}\n`
-      msg += `\n💶 Total: ${Number(order.total).toFixed(2)}€`
+      msg += `\n💵 Total: $${Number(order.total).toFixed(2)}`
 
       // Owner gets confirm/delegate/cancel — external driver only gets take_order
       const keyboard = driver.is_owner
@@ -341,7 +341,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const shortId = orderId.slice(-6).toUpperCase()
     let msg = `🚨 Delivery needed — Order #${shortId}\n📍 ${order.delivery_address}`
     if (order.notes) msg += `\n💬 ${order.notes}`
-    msg += `\n💶 ${Number(order.total).toFixed(2)}€`
+    msg += `\n💵 $${Number(order.total).toFixed(2)}`
 
     await Promise.allSettled(
       externalDrivers.map((d) =>

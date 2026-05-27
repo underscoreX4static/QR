@@ -62,7 +62,7 @@ export default function AdminPage() {
         {[
           { label: 'Total orders', value: loading ? '—' : stats?.totalOrders, color: 'text-blue-600 dark:text-blue-400' },
           { label: 'Active orders', value: loading ? '—' : stats?.activeOrders, color: 'text-orange-600 dark:text-orange-400' },
-          { label: 'Revenue', value: loading ? '—' : `${stats?.revenue.toFixed(2)}€`, color: 'text-green-600 dark:text-green-400' },
+          { label: 'Revenue', value: loading ? '—' : `$${stats?.revenue.toFixed(2)}`, color: 'text-green-600 dark:text-green-400' },
           { label: 'Active drivers', value: loading ? '—' : stats?.drivers, color: 'text-purple-600 dark:text-purple-400' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
@@ -92,7 +92,7 @@ export default function AdminPage() {
                 </div>
                 <p className="text-sm text-gray-700 dark:text-gray-300 truncate">{order.delivery_address}</p>
               </div>
-              <span className="font-semibold text-gray-900 dark:text-gray-100 shrink-0">{Number(order.total).toFixed(2)}€</span>
+              <span className="font-semibold text-gray-900 dark:text-gray-100 shrink-0">${Number(order.total).toFixed(2)}</span>
             </div>
           ))}
         </div>
