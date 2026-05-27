@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
-    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at')
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
     .order('created_at', { ascending: false })
     .limit(100)
     .returns<Order[]>()
