@@ -26,12 +26,20 @@ async function handleMessage(msg: TelegramBot.Message) {
   const driver = await getDriver(telegramId)
   if (driver) {
     // Check if we're waiting for a cancel reason from this driver
-    const pendingKey = `pending_cancel:${telegramId}`
-    const { data: pending } = await supabaseAdmin
-      .from('settings').select('value').eq('key', pendingKey).single()
+    const pendingCancelKey = `pending_cancel:${telegramId}`
+    const { data: pendingCancel } = await supabaseAdmin
+      .from('settings').select('value').eq('key', pendingCancelKey).single()
+    if (pendingCancel?.value) {
+      await handleCancelReason(chatId, telegramId, driver, pendingCancel.value, text)
+      return
+    }
 
-    if (pending?.value) {
-      await handleCancelReason(chatId, telegramId, driver, pending.value, text)
+    // Check if we're waiting for a refuse reason from this driver
+    const pendingRefuseKey = `pending_refuse:${telegramId}`
+    const { data: pendingRefuse } = await supabaseAdmin
+      .from('settings').select('value').eq('key', pendingRefuseKey).single()
+    if (pendingRefuse?.value) {
+      await handleRefuseReason(chatId, telegramId, driver, pendingRefuse.value, text)
       return
     }
 
@@ -123,7 +131,6 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
       if (order.notes) msg += `\n💬 ${order.notes}\n`
       msg += `\n💵 Total: $${Number(order.total).toFixed(2)}`
 
-      // Owner gets confirm/delegate/cancel — external driver only gets take_order
       const keyboard = driver.is_owner
         ? [[
             { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
@@ -189,7 +196,6 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       }
     )
 
-    // Notify customer
     await notifyCustomer(updated.user_id, `✅ Your order #${shortId} has been confirmed!`)
     return
   }
@@ -322,7 +328,6 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       return
     }
 
-    // Ensure confirmed before delegating
     if (order.status === 'pending') {
       await supabaseAdmin.from('orders').update({ status: 'confirmed' }).eq('id', orderId)
       await supabaseAdmin.from('order_status_history').insert({
@@ -338,24 +343,27 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       return
     }
 
-    const shortId = orderId.slice(-6).toUpperCase()
-    let msg = `🚨 Delivery needed — Order #${shortId}\n📍 ${order.delivery_address}`
-    if (order.notes) msg += `\n💬 ${order.notes}`
-    msg += `\n💵 $${Number(order.total).toFixed(2)}`
+    // Fetch items for the message
+    const msg = await buildDriverOrderMsg(orderId, order)
 
     await Promise.allSettled(
       externalDrivers.map((d) =>
         sendMessage(Number(d.telegram_id), msg, {
-          reply_markup: { inline_keyboard: [[{ text: '✅ Take order', callback_data: `take_order:${orderId}` }]] },
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '✅ Accept', callback_data: `accept_assigned:${orderId}` },
+              { text: '❌ Refuse', callback_data: `refuse_assigned:${orderId}` },
+            ]],
+          },
         })
       )
     )
 
-    // Record delegation so admin UI hides the Delegate button
     await supabaseAdmin.from('order_status_history').insert({
       order_id: orderId, status: order.status, changed_by: 'delegated',
     })
 
+    const shortId = orderId.slice(-6).toUpperCase()
     await sendMessage(chatId, `🛵 Order #${shortId} sent to ${externalDrivers.length} driver${externalDrivers.length > 1 ? 's' : ''}.`)
     return
   }
@@ -365,7 +373,6 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const orderId = data.split(':')[1]
     if (!orderId || orderId.length > 36 || !driver?.is_owner) return
 
-    // Check order is still cancellable
     const { data: order } = await supabaseAdmin
       .from('orders').select('status').eq('id', orderId).single()
 
@@ -374,7 +381,6 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       return
     }
 
-    // Store pending cancel state
     await supabaseAdmin.from('settings').upsert(
       { key: `pending_cancel:${telegramId}`, value: orderId },
       { onConflict: 'key' }
@@ -385,7 +391,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     return
   }
 
-  // ── take_order (external driver) ───────────────────────────────────────────
+  // ── take_order (external driver — broadcast) ───────────────────────────────
   if (data.startsWith('take_order:')) {
     const orderId = data.split(':')[1]
     if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
@@ -394,8 +400,9 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .from('orders')
       .update({ driver_id: driver.id, status: 'preparing' })
       .eq('id', orderId)
-      .in('status', ['confirmed', 'preparing'])
-      .select('id,user_id,delivery_address')
+      .in('status', ['pending', 'confirmed', 'preparing'])
+      .is('driver_id', null)
+      .select('id,user_id,delivery_address,total,notes')
       .single()
 
     if (error || !takenOrder) {
@@ -408,22 +415,112 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     })
 
     const shortId = orderId.slice(-6).toUpperCase()
+    const msg = await buildDriverOrderMsg(orderId, takenOrder)
     await sendMessage(chatId,
-      `✅ Order #${shortId} taken!\n📍 ${takenOrder.delivery_address}\n\nTap when you're on the way 👇`,
+      `✅ Order #${shortId} accepted!\n\n${msg}\n\nPick up the items and tap when on the way 👇`,
       {
         reply_markup: { inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]] },
       }
     )
 
     await notifyCustomer(takenOrder.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
+    await notifyOwners(`🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${takenOrder.delivery_address}`)
+    return
+  }
+
+  // ── accept_assigned (driver accepts a direct assignment) ──────────────────
+  if (data.startsWith('accept_assigned:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
+
+    const { data: order } = await supabaseAdmin
+      .from('orders')
+      .select('id,user_id,delivery_address,total,notes,driver_id,status')
+      .eq('id', orderId)
+      .single<Pick<Order, 'id' | 'user_id' | 'delivery_address' | 'total' | 'notes' | 'driver_id' | 'status'>>()
+
+    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
+      await sendMessage(chatId, '⚠️ This order is no longer available.')
+      return
+    }
+
+    const { data: updated, error } = await supabaseAdmin
+      .from('orders')
+      .update({ driver_id: driver.id, status: 'preparing' })
+      .eq('id', orderId)
+      .select('id,user_id,delivery_address,total')
+      .single()
+
+    if (error || !updated) {
+      await sendMessage(chatId, '⚠️ Could not accept order.')
+      return
+    }
+
+    await supabaseAdmin.from('order_status_history').insert({
+      order_id: orderId, status: 'preparing', changed_by: `driver:${driver.id}`,
+    })
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    const msg = await buildDriverOrderMsg(orderId, order)
+    await sendMessage(chatId,
+      `✅ Order #${shortId} accepted!\n\n${msg}\n\nPick up the items and tap when on the way 👇`,
+      {
+        reply_markup: { inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]] },
+      }
+    )
+
+    await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
+    await notifyOwners(`✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${updated.delivery_address}`)
+    return
+  }
+
+  // ── refuse_assigned (driver refuses) — ask for reason ─────────────────────
+  if (data.startsWith('refuse_assigned:')) {
+    const orderId = data.split(':')[1]
+    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
+
+    await supabaseAdmin.from('settings').upsert(
+      { key: `pending_refuse:${telegramId}`, value: orderId },
+      { onConflict: 'key' }
+    )
+
+    const shortId = orderId.slice(-6).toUpperCase()
+    await sendMessage(chatId, `❌ Refusing order #${shortId}\n\nWhy are you refusing? Your message will be sent to the admin.`)
     return
   }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+async function buildDriverOrderMsg(orderId: string, order: { delivery_address: string; total: number | string; notes?: string | null }): Promise<string> {
+  const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', orderId)
+  const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
+  const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
+  const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
+  const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
+  const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
+  const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+
+  const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
+    const v = variantMap[i.variant_id]
+    const name = v ? (productMap[v.product_id] ?? '?') : '?'
+    return `  ☐ ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
+  }).join('\n')
+
+  const total = Number(order.total)
+  // Placeholder earnings — ~20% of total (to be replaced with real commission logic)
+  const estimatedEarnings = (total * 0.20).toFixed(2)
+
+  let msg = `📍 Deliver to: ${order.delivery_address}\n`
+  if (itemLines) msg += `\n📦 Items to pick up:\n${itemLines}\n`
+  if (order.notes) msg += `\n💬 ${order.notes}\n`
+  msg += `\n💵 Order total: $${total.toFixed(2)}`
+  msg += `\n💰 Est. earnings: ~$${estimatedEarnings} (placeholder)`
+
+  return msg
+}
+
 async function handleCancelReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
-  // Clear pending state immediately
   await supabaseAdmin.from('settings').delete().eq('key', `pending_cancel:${telegramId}`)
 
   const { data: updated, error } = await supabaseAdmin
@@ -446,6 +543,34 @@ async function handleCancelReason(chatId: number, telegramId: string, driver: Dr
   const shortId = orderId.slice(-6).toUpperCase()
   await sendMessage(chatId, `✅ Order #${shortId} cancelled. Message sent to customer.`)
   await notifyCustomer(updated.user_id, `❌ Your order #${shortId} has been cancelled.\n\n💬 "${reason}"`)
+}
+
+async function handleRefuseReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
+  await supabaseAdmin.from('settings').delete().eq('key', `pending_refuse:${telegramId}`)
+
+  // Free the order (remove driver assignment)
+  const { data: order } = await supabaseAdmin
+    .from('orders')
+    .update({ driver_id: null })
+    .eq('id', orderId)
+    .select('id,delivery_address,total')
+    .single()
+
+  const shortId = orderId.slice(-6).toUpperCase()
+  await sendMessage(chatId, `OK, order #${shortId} has been returned. The admin will be notified.`)
+
+  // Notify all owners
+  await notifyOwners(
+    `⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 Reason: "${reason}"\n📍 ${order?.delivery_address ?? ''}\n\nPlease reassign from the admin.`
+  )
+}
+
+async function notifyOwners(msg: string) {
+  const { data: owners } = await supabaseAdmin
+    .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
+  await Promise.allSettled(
+    (owners ?? []).map((o: { telegram_id: string }) => sendMessage(Number(o.telegram_id), msg))
+  )
 }
 
 async function getDriver(telegramId: string): Promise<Driver | null> {

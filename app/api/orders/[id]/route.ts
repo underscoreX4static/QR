@@ -178,8 +178,38 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single<Pick<Driver, 'telegram_id'>>()
 
     if (driverRecord?.telegram_id) {
-      const driverMsg = `📦 You've been assigned order #${shortId}\n📍 Deliver to: ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)} cash on delivery`
-      await sendMessage(Number(driverRecord.telegram_id), driverMsg).catch(() => null)
+      // Fetch items for the message
+      const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', params.id)
+      const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
+      const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
+      const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
+      const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
+      const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
+      const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+      const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
+        const v = variantMap[i.variant_id]
+        const name = v ? (productMap[(v as { product_id: string }).product_id] ?? '?') : '?'
+        return `  ☐ ${i.quantity}× ${name}${(v as { size?: string })?.size ? ` ${(v as { size: string }).size}` : ''}`
+      }).join('\n')
+
+      const total = Number(updated.total)
+      const estimatedEarnings = (total * 0.20).toFixed(2)
+
+      let driverMsg = `📦 You've been assigned order #${shortId}\n`
+      driverMsg += `📍 Deliver to: ${updated.delivery_address}\n`
+      if (itemLines) driverMsg += `\n📦 Items to pick up:\n${itemLines}\n`
+      driverMsg += `\n💵 Order total: $${total.toFixed(2)}`
+      driverMsg += `\n💰 Est. earnings: ~$${estimatedEarnings} (placeholder)`
+      driverMsg += `\n\nAccept or refuse this delivery 👇`
+
+      await sendMessage(Number(driverRecord.telegram_id), driverMsg, {
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '✅ Accept', callback_data: `accept_assigned:${params.id}` },
+            { text: '❌ Refuse', callback_data: `refuse_assigned:${params.id}` },
+          ]],
+        },
+      }).catch(() => null)
     }
   }
 
