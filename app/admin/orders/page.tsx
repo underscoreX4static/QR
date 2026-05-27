@@ -290,8 +290,11 @@ export default function OrdersPage() {
     if (!silent) setLoading(true)
     try {
       const res = await fetch('/api/admin/orders', { cache: 'no-store', headers: { 'x-no-cache': Date.now().toString() } })
-      if (!res.ok) return
-      const json = await res.json()
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.error('Admin orders error:', json.error)
+        return
+      }
       setOrders(json.orders ?? [])
       setDrivers(json.drivers ?? [])
     } finally {

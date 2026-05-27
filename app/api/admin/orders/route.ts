@@ -12,14 +12,15 @@ interface StatusHistoryRow {
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  const { data: orders } = await supabaseAdmin
+  const { data: orders, error: ordersError } = await supabaseAdmin
     .from('orders')
     .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at')
     .order('created_at', { ascending: false })
     .limit(100)
     .returns<Order[]>()
 
-  if (!orders?.length) return NextResponse.json({ orders: [] })
+  if (ordersError) return NextResponse.json({ error: ordersError.message }, { status: 500 })
+  if (!orders?.length) return NextResponse.json({ orders: [], drivers: [] })
 
   const orderIds = orders.map((o) => o.id)
   const qrIds = Array.from(new Set(orders.map((o) => o.qr_code_id)))
