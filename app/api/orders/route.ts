@@ -153,7 +153,6 @@ export async function POST(req: NextRequest) {
       reply_markup: {
         inline_keyboard: [[
           { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
-          { text: '🛵 Delegate', callback_data: `delegate_order:${order.id}` },
           { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
         ]],
       },

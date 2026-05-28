@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Order, OrderItem, Variant, OrderStatus, Driver } from '@/types'
+import type { Order, OrderItem, Variant, OrderStatus } from '@/types'
 import Dialog from '@/components/ui/Dialog'
 
 interface StatusHistoryRow {
@@ -29,7 +29,6 @@ interface OrderWithItems extends Order {
   history: StatusHistoryRow[]
 }
 
-type DriverOption = Pick<Driver, 'id' | 'first_name' | 'last_name' | 'is_owner' | 'is_active'>
 
 const STATUS_COLORS: Record<string, string> = {
   pending:    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
@@ -72,25 +71,18 @@ function wazeUrl(address: string) {
 }
 
 function OrderCard({
-  order, busy, err, drivers, onPatch, onDelegate, onAssign,
+  order, busy, err, onPatch,
 }: {
   order: OrderWithItems
   busy: boolean
   err: string
-  drivers: DriverOption[]
   onPatch: (id: string, status: OrderStatus, cancelReason?: string) => void
-  onDelegate: (id: string) => void
-  onAssign: (id: string, driverId: string) => void
 }) {
   const next = NEXT_STATUS[order.status]
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
   const [showChecklist, setShowChecklist] = useState(false)
-  const [showAssign, setShowAssign] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
 
-  const externalDrivers = drivers.filter((d) => !d.is_owner)
-  const isDelegated = order.history?.some((h) => h.changed_by === 'delegated')
-  const canAssign = ['pending', 'confirmed', 'preparing'].includes(order.status) && !order.driver_id
   const showWaze = ['confirmed', 'preparing'].includes(order.status) && order.partner?.address
 
   return (
@@ -215,7 +207,6 @@ function OrderCard({
 
           {next && (
             <div className="flex flex-wrap items-center gap-2 justify-end">
-              {/* Advance status */}
               <button
                 onClick={() => onPatch(order.id, next)}
                 disabled={busy}
@@ -224,56 +215,6 @@ function OrderCard({
                 {busy ? '...' : NEXT_LABEL[order.status]}
               </button>
 
-              {/* Assign driver directly */}
-              {canAssign && !isDelegated && externalDrivers.length > 0 && (
-                <>
-                  {showAssign ? (
-                    <select
-                      autoFocus
-                      defaultValue=""
-                      disabled={busy}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          onAssign(order.id, e.target.value)
-                          setShowAssign(false)
-                        }
-                      }}
-                      className="px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded-lg text-xs bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 disabled:opacity-50"
-                    >
-                      <option value="" disabled>Select driver…</option>
-                      {externalDrivers.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.first_name} {d.last_name ?? ''}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <button
-                      onClick={() => setShowAssign(true)}
-                      disabled={busy}
-                      className="px-3 py-1.5 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-green-100 transition-colors"
-                    >
-                      Assign 🛵
-                    </button>
-                  )}
-                </>
-              )}
-
-              {/* Broadcast to all drivers */}
-              {canAssign && !isDelegated && (
-                <button
-                  onClick={() => onDelegate(order.id)}
-                  disabled={busy}
-                  className="px-3 py-1.5 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-orange-100 transition-colors"
-                >
-                  Broadcast 📢
-                </button>
-              )}
-              {isDelegated && !order.driver_id && (
-                <span className="text-xs text-orange-500 dark:text-orange-400">Broadcast sent ✓</span>
-              )}
-
-              {/* Cancel */}
               <button
                 onClick={() => setShowCancelDialog(true)}
                 disabled={busy}
@@ -292,7 +233,6 @@ function OrderCard({
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderWithItems[]>([])
-  const [drivers, setDrivers] = useState<DriverOption[]>([])
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -308,7 +248,6 @@ export default function OrdersPage() {
         return
       }
       setOrders(json.orders ?? [])
-      setDrivers(json.drivers ?? [])
     } finally {
       if (!silent) setLoading(false)
     }
@@ -334,45 +273,6 @@ export default function OrdersPage() {
     }
     // Update directly from PATCH response — don't reload (Vercel caches the list endpoint)
     setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...json.order, items: o.items, history: o.history, driver_name: o.driver_name, partner: o.partner } : o))
-    setActionLoading(null)
-  }
-
-  const delegate = async (orderId: string) => {
-    setActionLoading(orderId)
-    const res = await fetch(`/api/orders/${orderId}/assign`, { method: 'POST' })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to broadcast' }))
-    } else {
-      // Mark as delegated locally so button hides immediately
-      setOrders((prev) => prev.map((o) => o.id === orderId ? {
-        ...o,
-        history: [...(o.history ?? []), { order_id: orderId, status: o.status, changed_by: 'delegated', changed_at: new Date().toISOString() }],
-      } : o))
-    }
-    setActionLoading(null)
-  }
-
-  const assign = async (orderId: string, driverId: string) => {
-    setActionLoading(orderId)
-    setErrors((e) => ({ ...e, [orderId]: '' }))
-    const res = await fetch(`/api/orders/${orderId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ driver_id: driverId }),
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to assign' }))
-    } else {
-      const driverName = drivers.find((d) => d.id === driverId)
-      setOrders((prev) => prev.map((o) => o.id === orderId ? {
-        ...o,
-        ...json.order,
-        driver_name: driverName ? `${driverName.first_name} ${driverName.last_name ?? ''}`.trim() : 'Driver',
-        items: o.items, history: o.history, partner: o.partner,
-      } : o))
-    }
     setActionLoading(null)
   }
 
@@ -408,10 +308,7 @@ export default function OrdersPage() {
                 order={order}
                 busy={actionLoading === order.id}
                 err={errors[order.id] ?? ''}
-                drivers={drivers}
                 onPatch={patch}
-                onDelegate={delegate}
-                onAssign={assign}
               />
             ))}
           </div>
@@ -441,10 +338,7 @@ export default function OrdersPage() {
                   order={order}
                   busy={false}
                   err=""
-                  drivers={drivers}
                   onPatch={patch}
-                  onDelegate={delegate}
-                  onAssign={assign}
                 />
               ))}
             </div>

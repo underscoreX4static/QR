@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, answerCallbackQuery, editMessageReplyMarkup } from '@/lib/telegram'
-import type { Driver, User, QRCode, Order } from '@/types'
+import type { Driver, User, QRCode } from '@/types'
 
 export async function handleUpdate(update: TelegramBot.Update) {
   if (update.message) {
@@ -31,15 +31,6 @@ async function handleMessage(msg: TelegramBot.Message) {
       .from('settings').select('value').eq('key', pendingCancelKey).single()
     if (pendingCancel?.value) {
       await handleCancelReason(chatId, telegramId, driver, pendingCancel.value, text)
-      return
-    }
-
-    // Check if we're waiting for a refuse reason from this driver
-    const pendingRefuseKey = `pending_refuse:${telegramId}`
-    const { data: pendingRefuse } = await supabaseAdmin
-      .from('settings').select('value').eq('key', pendingRefuseKey).single()
-    if (pendingRefuse?.value) {
-      await handleRefuseReason(chatId, telegramId, driver, pendingRefuse.value, text)
       return
     }
 
@@ -131,13 +122,10 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
       if (order.notes) msg += `\n💬 ${order.notes}\n`
       msg += `\n💵 Total: $${Number(order.total).toFixed(2)}`
 
-      const keyboard = driver.is_owner
-        ? [[
-            { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
-            { text: '🛵 Delegate', callback_data: `delegate_order:${order.id}` },
-            { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
-          ]]
-        : [[{ text: '✅ Take order', callback_data: `take_order:${order.id}` }]]
+      const keyboard = [[
+        { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
+        { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
+      ]]
 
       await sendMessage(chatId, msg, { reply_markup: { inline_keyboard: keyboard } })
     }
@@ -185,12 +173,11 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     const shortId = orderId.slice(-6).toUpperCase()
     await sendMessage(chatId,
-      `✅ Order #${shortId} confirmed!\n\nHandle it yourself or delegate 👇`,
+      `✅ Order #${shortId} confirmed!\n\nTap to start preparing 👇`,
       {
         reply_markup: {
           inline_keyboard: [[
-            { text: '🛵 Delegate to driver', callback_data: `delegate_order:${orderId}` },
-            { text: '🍳 I\'ll handle it', callback_data: `self_handle:${orderId}` },
+            { text: '🍳 Start preparing', callback_data: `self_handle:${orderId}` },
           ]],
         },
       }
@@ -314,62 +301,6 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     return
   }
 
-  // ── delegate_order ─────────────────────────────────────────────────────────
-  if (data.startsWith('delegate_order:')) {
-    const orderId = data.split(':')[1]
-    if (!orderId || orderId.length > 36 || !driver?.is_owner) return
-
-    const { data: order } = await supabaseAdmin
-      .from('orders')
-      .select('id,status,delivery_address,total,notes')
-      .eq('id', orderId)
-      .single<Pick<Order, 'id' | 'status' | 'delivery_address' | 'total' | 'notes'>>()
-
-    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
-      await sendMessage(chatId, '⚠️ Cannot delegate this order.')
-      return
-    }
-
-    if (order.status === 'pending') {
-      await supabaseAdmin.from('orders').update({ status: 'confirmed' }).eq('id', orderId)
-      await supabaseAdmin.from('order_status_history').insert({
-        order_id: orderId, status: 'confirmed', changed_by: `driver:${driver.id}`,
-      })
-    }
-
-    const { data: externalDrivers } = await supabaseAdmin
-      .from('drivers').select('id,telegram_id,first_name').eq('is_owner', false).eq('is_active', true).returns<Driver[]>()
-
-    if (!externalDrivers?.length) {
-      await sendMessage(chatId, '⚠️ No external drivers available.')
-      return
-    }
-
-    // Fetch items for the message
-    const msg = await buildDriverOrderMsg(orderId, order)
-
-    await Promise.allSettled(
-      externalDrivers.map((d) =>
-        sendMessage(Number(d.telegram_id), msg, {
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '✅ Accept', callback_data: `accept_assigned:${orderId}` },
-              { text: '❌ Refuse', callback_data: `refuse_assigned:${orderId}` },
-            ]],
-          },
-        })
-      )
-    )
-
-    await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId, status: order.status, changed_by: 'delegated',
-    })
-
-    const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId, `🛵 Order #${shortId} sent to ${externalDrivers.length} driver${externalDrivers.length > 1 ? 's' : ''}.`)
-    return
-  }
-
   // ── cancel_order — ask for reason first ───────────────────────────────────
   if (data.startsWith('cancel_order:')) {
     const orderId = data.split(':')[1]
@@ -393,127 +324,10 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     return
   }
 
-  // ── take_order (external driver — broadcast) ───────────────────────────────
-  if (data.startsWith('take_order:')) {
-    const orderId = data.split(':')[1]
-    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
-
-    const { data: takenOrder, error } = await supabaseAdmin
-      .from('orders')
-      .update({ driver_id: driver.id, status: 'preparing' })
-      .eq('id', orderId)
-      .in('status', ['pending', 'confirmed', 'preparing'])
-      .is('driver_id', null)
-      .select('id,user_id,delivery_address,total,notes')
-      .single()
-
-    if (error || !takenOrder) {
-      await sendMessage(chatId, '⚠️ Could not take order — it may have already been taken.')
-      return
-    }
-
-    await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId, status: 'preparing', changed_by: `driver:${driver.id}`,
-    })
-
-    const shortId = orderId.slice(-6).toUpperCase()
-    const msg = await buildDriverOrderMsg(orderId, takenOrder)
-    await sendMessage(chatId,
-      `✅ Order #${shortId} accepted!\n\n${msg}\n\nPick up the items and tap when on the way 👇`,
-      {
-        reply_markup: { inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]] },
-      }
-    )
-
-    await notifyCustomer(takenOrder.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
-    await clearOwnerButtons(orderId, `🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}`)
-    await notifyOwners(`🛵 Order #${shortId} taken by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${takenOrder.delivery_address}`)
-    return
-  }
-
-  // ── accept_assigned (driver accepts a direct assignment) ──────────────────
-  if (data.startsWith('accept_assigned:')) {
-    const orderId = data.split(':')[1]
-    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
-
-    const { data: updated, error } = await supabaseAdmin
-      .from('orders')
-      .update({ driver_id: driver.id, status: 'preparing' })
-      .eq('id', orderId)
-      .in('status', ['pending', 'confirmed', 'preparing'])
-      .is('driver_id', null)
-      .select('id,user_id,delivery_address,total,notes')
-      .single()
-
-    if (error || !updated) {
-      await sendMessage(chatId, '⚠️ Could not accept — order may have already been taken.')
-      return
-    }
-
-    await supabaseAdmin.from('order_status_history').insert({
-      order_id: orderId, status: 'preparing', changed_by: `driver:${driver.id}`,
-    })
-
-    const shortId = orderId.slice(-6).toUpperCase()
-    const msg = await buildDriverOrderMsg(orderId, updated)
-    await sendMessage(chatId,
-      `✅ Order #${shortId} accepted!\n\n${msg}\n\nPick up the items and tap when on the way 👇`,
-      {
-        reply_markup: { inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]] },
-      }
-    )
-
-    await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
-    await clearOwnerButtons(orderId, `✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}`)
-    await notifyOwners(`✅ Order #${shortId} accepted by ${driver.first_name} ${driver.last_name ?? ''}\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}`)
-    return
-  }
-
-  // ── refuse_assigned (driver refuses) — ask for reason ─────────────────────
-  if (data.startsWith('refuse_assigned:')) {
-    const orderId = data.split(':')[1]
-    if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
-
-    await supabaseAdmin.from('settings').upsert(
-      { key: `pending_refuse:${telegramId}`, value: orderId },
-      { onConflict: 'key' }
-    )
-
-    const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId, `❌ Refusing order #${shortId}\n\nWhy are you refusing? Your message will be sent to the admin.`)
-    return
-  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function buildDriverOrderMsg(orderId: string, order: { delivery_address: string; total: number | string; notes?: string | null }): Promise<string> {
-  const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', orderId)
-  const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
-  const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
-  const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
-  const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
-  const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-  const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
-
-  const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
-    const v = variantMap[i.variant_id]
-    const name = v ? (productMap[v.product_id] ?? '?') : '?'
-    return `  ☐ ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
-  }).join('\n')
-
-  const total = Number(order.total)
-  // Placeholder earnings — ~20% of total (to be replaced with real commission logic)
-  const estimatedEarnings = (total * 0.20).toFixed(2)
-
-  let msg = `📍 Deliver to: ${order.delivery_address}\n`
-  if (itemLines) msg += `\n📦 Items to pick up:\n${itemLines}\n`
-  if (order.notes) msg += `\n💬 ${order.notes}\n`
-  msg += `\n💵 Order total: $${total.toFixed(2)}`
-  msg += `\n💰 Est. earnings: ~$${estimatedEarnings} (placeholder)`
-
-  return msg
-}
 
 async function handleCancelReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
   await supabaseAdmin.from('settings').delete().eq('key', `pending_cancel:${telegramId}`)
@@ -549,35 +363,7 @@ async function handleCancelReason(chatId: number, telegramId: string, driver: Dr
   }
 }
 
-async function handleRefuseReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
-  await supabaseAdmin.from('settings').delete().eq('key', `pending_refuse:${telegramId}`)
 
-  // Free the order — only if this driver is actually the assigned one
-  const { error } = await supabaseAdmin
-    .from('orders')
-    .update({ driver_id: null })
-    .eq('id', orderId)
-    .eq('driver_id', driver.id)
-
-  if (error) {
-    await sendMessage(chatId, '⚠️ Could not refuse — you may not be assigned to this order.')
-    return
-  }
-
-  const shortId = orderId.slice(-6).toUpperCase()
-  await sendMessage(chatId, `OK, order #${shortId} has been returned. The admin will be notified.`)
-
-  await clearOwnerButtons(orderId, `⚠️ Order #${shortId} refused`)
-  await notifyOwners(`⚠️ Order #${shortId} refused by ${driver.first_name} ${driver.last_name ?? ''}\n💬 "${reason}"\n\nPlease reassign from the admin.`)
-}
-
-async function notifyOwners(msg: string) {
-  const { data: owners } = await supabaseAdmin
-    .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
-  await Promise.allSettled(
-    (owners ?? []).map((o: { telegram_id: string }) => sendMessage(Number(o.telegram_id), msg))
-  )
-}
 
 async function clearOwnerButtons(orderId: string, statusText: string) {
   const { data: owners } = await supabaseAdmin
