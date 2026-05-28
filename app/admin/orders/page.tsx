@@ -241,7 +241,10 @@ export default function OrdersPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' })
+      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+      })
       const json = await res.json().catch(() => ({}))
       if (!res.ok) {
         console.error('Admin orders error:', json.error)

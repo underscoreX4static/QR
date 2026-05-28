@@ -90,6 +90,10 @@ export async function GET() {
   }))
 
   return NextResponse.json({ orders: ordersWithItems, drivers: driverList }, {
-    headers: { 'Cache-Control': 'no-store, max-age=0' },
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      'Surrogate-Control': 'no-store',
+      'Pragma': 'no-cache',
+    },
   })
 }
