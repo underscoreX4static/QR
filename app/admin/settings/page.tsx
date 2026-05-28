@@ -25,6 +25,7 @@ function fmt(h: number) {
 export default function SettingsPage() {
   const [hours, setHours] = useState<WeekHours>(DEFAULT_HOURS)
   const [storeForceOpen, setStoreForceOpen] = useState<boolean | null>(null) // null = follow schedule
+  const [notifyCustomers, setNotifyCustomers] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [toggleLoading, setToggleLoading] = useState(false)
@@ -69,7 +70,7 @@ export default function SettingsPage() {
     const res = await fetch('/api/settings/store-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ forceOpen: value }),
+      body: JSON.stringify({ forceOpen: value, notify: notifyCustomers }),
     })
     if (res.ok) setStoreForceOpen(value)
     setToggleLoading(false)
@@ -96,6 +97,16 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
+
+        <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={notifyCustomers}
+            onChange={(e) => setNotifyCustomers(e.target.checked)}
+            className="w-4 h-4 rounded accent-blue-600"
+          />
+          Notify customers via Telegram
+        </label>
 
         <div className="grid grid-cols-3 gap-2">
           <button
