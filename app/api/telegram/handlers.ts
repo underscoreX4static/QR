@@ -1,7 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, answerCallbackQuery, editMessageReplyMarkup } from '@/lib/telegram'
-import type { Driver, User, QRCode } from '@/types'
+import type { Driver, User, QRCode, Order } from '@/types'
 
 export async function handleUpdate(update: TelegramBot.Update) {
   if (update.message) {
