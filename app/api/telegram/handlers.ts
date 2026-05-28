@@ -212,17 +212,32 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
+    // Build item checklist
+    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', orderId)
+    const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
+    const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
+    const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
+    const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
+    const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
+    const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+    const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
+      const v = variantMap[i.variant_id]
+      const name = v ? (productMap[v.product_id] ?? '?') : '?'
+      return `  ☐ ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
+    }).join('\n')
+
     const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId,
-      `👨‍🍳 Order #${shortId} — you're on it!\n📍 ${updated.delivery_address}\n\nTap when you're on the way 👇`,
-      {
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '🛵 On the way', callback_data: `on_the_way:${orderId}` },
-          ]],
-        },
-      }
-    )
+    let prepMsg = `👨‍🍳 Order #${shortId} — you're on it!\n📍 ${updated.delivery_address}`
+    if (itemLines) prepMsg += `\n\n📦 Items to pick up:\n${itemLines}`
+    prepMsg += `\n\nTap when you're on the way 👇`
+
+    await sendMessage(chatId, prepMsg, {
+      reply_markup: {
+        inline_keyboard: [[
+          { text: '🛵 On the way', callback_data: `on_the_way:${orderId}` },
+        ]],
+      },
+    })
 
     await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
     await clearOwnerButtons(orderId, `🍳 Order #${shortId} — you're handling it`)
