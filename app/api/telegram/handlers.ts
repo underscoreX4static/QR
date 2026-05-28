@@ -252,7 +252,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .update({ status: 'on_the_way' })
       .eq('id', orderId)
       .eq('driver_id', driver.id)
-      .in('status', ['preparing', 'confirmed'])
+      .eq('status', 'preparing')
       .select('id,delivery_address,user_id')
       .single()
 
@@ -436,26 +436,17 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const orderId = data.split(':')[1]
     if (!orderId || orderId.length > 36 || !driver || driver.is_owner) return
 
-    const { data: order } = await supabaseAdmin
-      .from('orders')
-      .select('id,user_id,delivery_address,total,notes,driver_id,status')
-      .eq('id', orderId)
-      .single<Pick<Order, 'id' | 'user_id' | 'delivery_address' | 'total' | 'notes' | 'driver_id' | 'status'>>()
-
-    if (!order || !['pending', 'confirmed', 'preparing'].includes(order.status)) {
-      await sendMessage(chatId, '⚠️ This order is no longer available.')
-      return
-    }
-
     const { data: updated, error } = await supabaseAdmin
       .from('orders')
       .update({ driver_id: driver.id, status: 'preparing' })
       .eq('id', orderId)
-      .select('id,user_id,delivery_address,total')
+      .in('status', ['pending', 'confirmed', 'preparing'])
+      .is('driver_id', null)
+      .select('id,user_id,delivery_address,total,notes')
       .single()
 
     if (error || !updated) {
-      await sendMessage(chatId, '⚠️ Could not accept order.')
+      await sendMessage(chatId, '⚠️ Could not accept — order may have already been taken.')
       return
     }
 
@@ -464,7 +455,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     })
 
     const shortId = orderId.slice(-6).toUpperCase()
-    const msg = await buildDriverOrderMsg(orderId, order)
+    const msg = await buildDriverOrderMsg(orderId, updated)
     await sendMessage(chatId,
       `✅ Order #${shortId} accepted!\n\n${msg}\n\nPick up the items and tap when on the way 👇`,
       {
@@ -532,7 +523,7 @@ async function handleCancelReason(chatId: number, telegramId: string, driver: Dr
     .update({ status: 'cancelled' })
     .eq('id', orderId)
     .in('status', ['pending', 'confirmed', 'preparing', 'on_the_way'])
-    .select('id,user_id')
+    .select('id,user_id,driver_id')
     .single()
 
   if (error || !updated) {
@@ -547,16 +538,31 @@ async function handleCancelReason(chatId: number, telegramId: string, driver: Dr
   const shortId = orderId.slice(-6).toUpperCase()
   await sendMessage(chatId, `✅ Order #${shortId} cancelled. Message sent to customer.`)
   await notifyCustomer(updated.user_id, `❌ Your order #${shortId} has been cancelled.\n\n💬 "${reason}"`)
+
+  // Notify the assigned driver if there is one (and it's not the owner cancelling their own assignment)
+  if (updated.driver_id) {
+    const { data: assignedDriver } = await supabaseAdmin
+      .from('drivers').select('telegram_id,first_name').eq('id', updated.driver_id).single<Pick<Driver, 'telegram_id' | 'first_name'>>()
+    if (assignedDriver?.telegram_id && String(assignedDriver.telegram_id) !== telegramId) {
+      await sendMessage(Number(assignedDriver.telegram_id), `❌ Order #${shortId} has been cancelled by the admin.`)
+    }
+  }
 }
 
 async function handleRefuseReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
   await supabaseAdmin.from('settings').delete().eq('key', `pending_refuse:${telegramId}`)
 
-  // Free the order (remove driver assignment)
-  await supabaseAdmin
+  // Free the order — only if this driver is actually the assigned one
+  const { error } = await supabaseAdmin
     .from('orders')
     .update({ driver_id: null })
     .eq('id', orderId)
+    .eq('driver_id', driver.id)
+
+  if (error) {
+    await sendMessage(chatId, '⚠️ Could not refuse — you may not be assigned to this order.')
+    return
+  }
 
   const shortId = orderId.slice(-6).toUpperCase()
   await sendMessage(chatId, `OK, order #${shortId} has been returned. The admin will be notified.`)

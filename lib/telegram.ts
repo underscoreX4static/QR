@@ -15,7 +15,11 @@ export async function answerCallbackQuery(callbackQueryId: string, text?: string
 export async function editMessageReplyMarkup(chatId: number | string, messageId: number, text?: string) {
   try {
     if (text) {
-      await bot.editMessageText(text, { chat_id: chatId, message_id: messageId })
+      await bot.editMessageText(text, {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: { inline_keyboard: [] },
+      })
     } else {
       await bot.editMessageReplyMarkup({ inline_keyboard: [] }, { chat_id: chatId, message_id: messageId })
     }
