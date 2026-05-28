@@ -130,7 +130,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     // Remove action buttons from owner's notification message
     await clearOwnerButtons(params.id, shortId, status as OrderStatus)
 
-    // On confirmed: notify owner only (they decide whether to handle or delegate)
+    // On confirmed: notify owners
     if (status === 'confirmed') {
       const { data: owners } = await supabaseAdmin
         .from('drivers')
@@ -139,9 +139,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         .eq('is_active', true)
         .returns<Pick<Driver, 'telegram_id'>[]>()
 
-      const ownerMsg = `✅ Order #${shortId} confirmed\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}\n\nHandle it yourself or delegate from the admin.`
       await Promise.allSettled(
-        (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg))
+        (owners ?? []).map((o) => sendMessage(Number(o.telegram_id),
+          `✅ Order #${shortId} confirmed!\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}\n\nTap to start preparing 👇`,
+          {
+            reply_markup: { inline_keyboard: [[{ text: '🍳 Start preparing', callback_data: `self_handle:${params.id}` }]] },
+          }
+        ))
       )
     }
 

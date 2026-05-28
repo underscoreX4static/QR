@@ -71,12 +71,13 @@ function wazeUrl(address: string) {
 }
 
 function OrderCard({
-  order, busy, err, onPatch,
+  order, busy, err, onPatch, onAssignMe,
 }: {
   order: OrderWithItems
   busy: boolean
   err: string
   onPatch: (id: string, status: OrderStatus, cancelReason?: string) => void
+  onAssignMe: (id: string) => void
 }) {
   const next = NEXT_STATUS[order.status]
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
@@ -207,6 +208,16 @@ function OrderCard({
 
           {next && (
             <div className="flex flex-wrap items-center gap-2 justify-end">
+              {!order.driver_id && ['confirmed', 'preparing', 'on_the_way'].includes(order.status) && (
+                <button
+                  onClick={() => onAssignMe(order.id)}
+                  disabled={busy}
+                  className="px-3 py-1.5 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded-lg text-xs font-medium disabled:opacity-50 hover:bg-purple-100 transition-colors"
+                >
+                  Assign to me 🙋
+                </button>
+              )}
+
               <button
                 onClick={() => onPatch(order.id, next)}
                 disabled={busy}
@@ -281,6 +292,19 @@ export default function OrdersPage() {
     setActionLoading(null)
   }
 
+  const assignMe = async (orderId: string) => {
+    setActionLoading(orderId)
+    setErrors((e) => ({ ...e, [orderId]: '' }))
+    const res = await fetch(`/api/orders/${orderId}/assign-me`, { method: 'POST' })
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      setErrors((e) => ({ ...e, [orderId]: json.error ?? 'Failed to assign' }))
+    } else {
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, driver_id: json.driver_id, driver_name: json.driver_name } : o))
+    }
+    setActionLoading(null)
+  }
+
   const active = orders.filter((o) => (ACTIVE_STATUSES as string[]).includes(o.status))
   const history = orders.filter((o) => !(ACTIVE_STATUSES as string[]).includes(o.status))
 
@@ -314,6 +338,7 @@ export default function OrdersPage() {
                 busy={actionLoading === order.id}
                 err={errors[order.id] ?? ''}
                 onPatch={patch}
+                onAssignMe={assignMe}
               />
             ))}
           </div>
@@ -344,6 +369,7 @@ export default function OrdersPage() {
                   busy={false}
                   err=""
                   onPatch={patch}
+                  onAssignMe={assignMe}
                 />
               ))}
             </div>

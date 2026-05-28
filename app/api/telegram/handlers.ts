@@ -174,7 +174,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
     const shortId = orderId.slice(-6).toUpperCase()
     await sendMessage(chatId,
-      `✅ Order #${shortId} confirmed!\n\nTap to start preparing 👇`,
+      `✅ Order #${shortId} confirmed!\n📍 ${updated.delivery_address}\n💵 $${Number(updated.total).toFixed(2)}\n\nTap to start preparing 👇`,
       {
         reply_markup: {
           inline_keyboard: [[
