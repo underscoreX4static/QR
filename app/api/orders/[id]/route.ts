@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, editMessageReplyMarkup } from '@/lib/telegram'
+import { calcOrderEarnings } from '@/lib/earnings'
 import type { Order, OrderStatus, Driver } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -166,6 +167,37 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       if (user?.telegram_id) {
         await sendMessage(Number(user.telegram_id), customerMsg).catch(() => null)
       }
+    }
+
+    // On delivered: record settlements for driver and partner
+    if (status === 'delivered' && updated.driver_id) {
+      const earnings = await calcOrderEarnings(params.id, updated.delivery_fee)
+      const now = new Date().toISOString()
+
+      await supabaseAdmin.from('settlements').insert([
+        {
+          type: 'driver',
+          status: 'proposed',
+          driver_id: updated.driver_id,
+          period_start: now,
+          period_end: now,
+          total_cash: Number(updated.total),
+          payout_amount: earnings.driverShare,
+          proposed_by: 'system',
+          proposed_at: now,
+        },
+        {
+          type: 'partner',
+          status: 'proposed',
+          driver_id: null,
+          period_start: now,
+          period_end: now,
+          total_cash: Number(updated.total),
+          payout_amount: earnings.partnerShare,
+          proposed_by: 'system',
+          proposed_at: now,
+        },
+      ])
     }
   }
 

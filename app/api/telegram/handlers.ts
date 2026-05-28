@@ -1,6 +1,7 @@
 import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, answerCallbackQuery, editMessageReplyMarkup } from '@/lib/telegram'
+import { calcOrderEarnings } from '@/lib/earnings'
 import type { Driver, User, QRCode, Order } from '@/types'
 
 export async function handleUpdate(update: TelegramBot.Update) {
@@ -198,7 +199,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .update({ driver_id: driver.id, status: 'preparing' })
       .eq('id', orderId)
       .in('status', ['confirmed', 'pending'])
-      .select('id,delivery_address,user_id')
+      .select('id,delivery_address,delivery_fee,user_id')
       .single()
 
     if (error || !updated) {
@@ -212,8 +213,8 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
-    // Build item checklist
-    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', orderId)
+    // Build item checklist + earnings
+    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity,unit_price_sell,unit_price_cost').eq('order_id', orderId)
     const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
     const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
     const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
@@ -226,9 +227,13 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       return `  ☐ ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
     }).join('\n')
 
+    const earnings = await calcOrderEarnings(orderId, (updated as { delivery_fee: number }).delivery_fee)
+
     const shortId = orderId.slice(-6).toUpperCase()
     let prepMsg = `👨‍🍳 Order #${shortId} — you're on it!\n📍 ${updated.delivery_address}`
     if (itemLines) prepMsg += `\n\n📦 Items to pick up:\n${itemLines}`
+    prepMsg += `\n\n💰 Your earnings: $${earnings.driverShare.toFixed(2)}`
+    if (earnings.deliveryFee > 0) prepMsg += ` (delivery $${earnings.deliveryFee.toFixed(2)} + 50% profit $${(earnings.profit * 0.5).toFixed(2)})`
     prepMsg += `\n\nTap when you're on the way 👇`
 
     await sendMessage(chatId, prepMsg, {
@@ -296,7 +301,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .eq('id', orderId)
       .eq('driver_id', driver.id)
       .eq('status', 'on_the_way')
-      .select('id,user_id')
+      .select('id,user_id,delivery_fee,total')
       .single()
 
     if (error || !updated) {
@@ -310,8 +315,36 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
+    // Record settlements
+    const earnings = await calcOrderEarnings(orderId, (updated as { delivery_fee: number }).delivery_fee)
+    const now = new Date().toISOString()
+    await supabaseAdmin.from('settlements').insert([
+      {
+        type: 'driver',
+        status: 'proposed',
+        driver_id: driver.id,
+        period_start: now,
+        period_end: now,
+        total_cash: Number((updated as { total: number }).total),
+        payout_amount: earnings.driverShare,
+        proposed_by: 'system',
+        proposed_at: now,
+      },
+      {
+        type: 'partner',
+        status: 'proposed',
+        driver_id: null,
+        period_start: now,
+        period_end: now,
+        total_cash: Number((updated as { total: number }).total),
+        payout_amount: earnings.partnerShare,
+        proposed_by: 'system',
+        proposed_at: now,
+      },
+    ])
+
     const shortId = orderId.slice(-6).toUpperCase()
-    await sendMessage(chatId, `🎉 Order #${shortId} delivered! Great job.`)
+    await sendMessage(chatId, `🎉 Order #${shortId} delivered!\n\n💰 You earned: $${earnings.driverShare.toFixed(2)}`)
     await notifyCustomer(updated.user_id, `🎉 Your order #${shortId} has been delivered. Enjoy!`)
     return
   }
