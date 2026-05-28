@@ -275,13 +275,15 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     })
 
     const shortId = orderId.slice(-6).toUpperCase()
+    const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
     await sendMessage(chatId,
       `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\nTap when delivered 👇`,
       {
         reply_markup: {
-          inline_keyboard: [[
-            { text: '✅ Delivered', callback_data: `delivered:${orderId}` },
-          ]],
+          inline_keyboard: [
+            [{ text: '🗺️ Open in Waze', url: wazeUrl }],
+            [{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }],
+          ],
         },
       }
     )

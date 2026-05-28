@@ -161,17 +161,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         const { data: driverRecord } = await supabaseAdmin
           .from('drivers').select('telegram_id').eq('id', updated.driver_id).single<Pick<Driver, 'telegram_id'>>()
         if (driverRecord?.telegram_id) {
-          const keyboard: Record<string, string> = {
-            preparing:  `on_the_way:${params.id}`,
-            on_the_way: `delivered:${params.id}`,
+          const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
+          const keyboard: Record<string, { text: string; callback_data: string }[][]> = {
+            preparing:  [[{ text: '🛵 On the way', callback_data: `on_the_way:${params.id}` }]],
+            on_the_way: [
+              [{ text: '🗺️ Open in Waze', url: wazeUrl } as { text: string; callback_data: string }],
+              [{ text: '✅ Delivered', callback_data: `delivered:${params.id}` }],
+            ],
           }
-          const callbackData = keyboard[status as string]
-          const buttonLabel: Record<string, string> = {
-            preparing:  '🛵 On the way',
-            on_the_way: '✅ Delivered',
-          }
-          await sendMessage(Number(driverRecord.telegram_id), driverMsg, callbackData ? {
-            reply_markup: { inline_keyboard: [[{ text: buttonLabel[status as string], callback_data: callbackData }]] },
+          const inlineKeyboard = keyboard[status as string]
+          await sendMessage(Number(driverRecord.telegram_id), driverMsg, inlineKeyboard ? {
+            reply_markup: { inline_keyboard: inlineKeyboard },
           } : undefined).catch(() => null)
         }
       }
