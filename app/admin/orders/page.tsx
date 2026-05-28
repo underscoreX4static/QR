@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { createSupabaseBrowserClient } from '@/lib/supabase-browser'
 import type { Order, OrderItem, Variant, OrderStatus } from '@/types'
 import Dialog from '@/components/ui/Dialog'
 
@@ -237,6 +238,7 @@ export default function OrdersPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [showHistory, setShowHistory] = useState(false)
+  const supabase = useRef(createSupabaseBrowserClient())
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -255,8 +257,13 @@ export default function OrdersPage() {
 
   useEffect(() => {
     load()
-    const interval = setInterval(() => load(true), 15000)
-    return () => clearInterval(interval)
+
+    const channel = supabase.current
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => load(true))
+      .subscribe()
+
+    return () => { supabase.current.removeChannel(channel) }
   }, [load])
 
   const patch = async (orderId: string, status: OrderStatus, cancelReason?: string) => {
