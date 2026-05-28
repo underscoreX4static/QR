@@ -145,6 +145,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       )
     }
 
+    // Notify driver on key status changes from admin
+    if (updated.driver_id) {
+      const driverMessages: Partial<Record<OrderStatus, string>> = {
+        preparing:  `👨‍🍳 Order #${shortId} — start preparing!\n📍 ${updated.delivery_address}`,
+        on_the_way: `🛵 Order #${shortId} — mark as on the way!`,
+        cancelled:  `❌ Order #${shortId} has been cancelled.`,
+      }
+      const driverMsg = driverMessages[status as OrderStatus]
+      if (driverMsg) {
+        const { data: driverRecord } = await supabaseAdmin
+          .from('drivers').select('telegram_id').eq('id', updated.driver_id).single<Pick<Driver, 'telegram_id'>>()
+        if (driverRecord?.telegram_id) {
+          const keyboard: Record<string, string> = {
+            preparing:  `on_the_way:${params.id}`,
+            on_the_way: `delivered:${params.id}`,
+          }
+          const callbackData = keyboard[status as string]
+          const buttonLabel: Record<string, string> = {
+            preparing:  '🛵 On the way',
+            on_the_way: '✅ Delivered',
+          }
+          await sendMessage(Number(driverRecord.telegram_id), driverMsg, callbackData ? {
+            reply_markup: { inline_keyboard: [[{ text: buttonLabel[status as string], callback_data: callbackData }]] },
+          } : undefined).catch(() => null)
+        }
+      }
+    }
+
     // Notify customer on key status changes
     const customerMessages: Partial<Record<OrderStatus, string>> = {
       confirmed:  `✅ Your order #${shortId} has been confirmed!`,
