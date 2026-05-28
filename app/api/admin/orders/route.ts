@@ -10,6 +10,8 @@ interface StatusHistoryRow {
 }
 
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+export const fetchCache = 'force-no-store'
 
 export async function GET() {
   const { data: orders, error: ordersError } = await supabaseAdmin
