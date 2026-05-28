@@ -247,7 +247,9 @@ export default function OrdersPage() {
         console.error('Admin orders error:', json.error)
         return
       }
-      setOrders(json.orders ?? [])
+      const incoming = json.orders ?? []
+      console.log('[poll] orders:', incoming.map((o: { id: string; status: string }) => `${o.id.slice(-6)} ${o.status}`))
+      setOrders(incoming)
     } finally {
       if (!silent) setLoading(false)
     }
