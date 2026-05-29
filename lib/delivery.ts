@@ -191,18 +191,19 @@ export interface DeliverySlot {
   label: string      // "Today 3:00 PM"
   value: string      // ISO string
   date: Date
+  taken?: boolean
 }
 
-export async function getAvailableSlots(now: Date = new Date()): Promise<DeliverySlot[]> {
+export async function getAvailableSlots(now: Date = new Date(), takenSlots: string[] = []): Promise<DeliverySlot[]> {
   const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
   const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000)
+  const takenSet = new Set(takenSlots)
 
   for (let dayOffset = 0; dayOffset <= 2; dayOffset++) {
     const base = new Date(local)
     base.setUTCDate(base.getUTCDate() + dayOffset)
-    base.setUTCMinutes(0)
     base.setUTCSeconds(0)
     base.setUTCMilliseconds(0)
 
@@ -210,15 +211,23 @@ export async function getAvailableSlots(now: Date = new Date()): Promise<Deliver
     const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : base.toLocaleDateString('en-AU', { weekday: 'long' })
 
     for (let h = open; h < close; h++) {
-      const slot = new Date(base)
-      slot.setUTCHours(h)
-      if (slot >= minTime) {
+      for (const min of [0, 30]) {
+        const slot = new Date(base)
+        slot.setUTCHours(h)
+        slot.setUTCMinutes(min)
+        if (slot < minTime) continue
+
+        const slotIso = slot.toISOString()
+        const taken = takenSet.has(slotIso)
         const hour12 = h % 12 === 0 ? 12 : h % 12
         const ampm = h < 12 ? 'AM' : 'PM'
+        const minLabel = min === 0 ? '00' : '30'
+
         slots.push({
-          label: `${dayLabel} ${hour12}:00 ${ampm}`,
-          value: slot.toISOString(),
+          label: `${dayLabel} ${hour12}:${minLabel} ${ampm}${taken ? ' — full' : ''}`,
+          value: slotIso,
           date: slot,
+          taken,
         })
       }
     }

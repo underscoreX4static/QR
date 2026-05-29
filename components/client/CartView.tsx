@@ -69,11 +69,19 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
 
   useEffect(() => {
-    Promise.all([isStoreOpen(), getNextOpenTime(), getAvailableSlots()]).then(([open, next, s]) => {
+    async function loadSchedule() {
+      const [open, next, takenRes] = await Promise.all([
+        isStoreOpen(),
+        getNextOpenTime(),
+        fetch('/api/slots').then((r) => r.json()).catch(() => ({ taken: [] })),
+      ])
+      const s = await getAvailableSlots(new Date(), takenRes.taken ?? [])
       setStoreOpen(open)
       setNextOpen(next)
       setSlots(s)
-    })
+      if (!open) setDeliveryType('scheduled')
+    }
+    loadSchedule()
   }, [])
 
   // Suburb autocomplete
@@ -206,10 +214,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 </div>
 
                 <button
-                  onClick={() => {
-                    if (!storeOpen) setDeliveryType('scheduled')
-                    setStep('address')
-                  }}
+                  onClick={() => setStep('address')}
                   className="w-full bg-blue-600 text-white rounded-2xl py-4 font-semibold text-base active:scale-95 transition-transform"
                 >
                   {storeOpen ? `Continue — $${total.toFixed(2)}` : `Schedule a delivery — $${total.toFixed(2)}`}
@@ -315,30 +320,25 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 🕙 <span className="font-bold">We&apos;re closed.</span> Opens {nextOpen} — please schedule a time slot below.
               </div>
             )}
-            {/* ASAP option — disabled when store is closed */}
-            <button
-              onClick={() => { if (storeOpen) setDeliveryType('asap') }}
-              disabled={!storeOpen}
-              className={`w-full rounded-2xl p-4 border-2 text-left transition-all ${
-                !storeOpen
-                  ? 'border-gray-100 bg-gray-50 opacity-50 cursor-not-allowed'
-                  : deliveryType === 'asap'
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 bg-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⚡</span>
-                <div>
-                  <p className="font-semibold text-gray-900">As soon as possible</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {storeOpen
-                      ? 'No guaranteed time — we\'ll get there as fast as we can'
-                      : `We\'re currently closed — opens ${nextOpen}`}
-                  </p>
+            {/* ASAP option — only shown when store is open */}
+            {storeOpen && (
+              <button
+                onClick={() => setDeliveryType('asap')}
+                className={`w-full rounded-2xl p-4 border-2 text-left transition-all ${
+                  deliveryType === 'asap'
+                    ? 'border-blue-600 bg-blue-50'
+                    : 'border-gray-200 bg-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">⚡</span>
+                  <div>
+                    <p className="font-semibold text-gray-900">As soon as possible</p>
+                    <p className="text-xs text-gray-500 mt-0.5">No guaranteed time — we&apos;ll get there as fast as we can</p>
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+            )}
 
             {/* Scheduled option */}
             <button
@@ -367,9 +367,12 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                     {slots.map((slot) => (
                       <button
                         key={slot.value}
-                        onClick={() => setSelectedSlot(slot)}
+                        onClick={() => { if (!slot.taken) setSelectedSlot(slot) }}
+                        disabled={slot.taken}
                         className={`w-full px-4 py-3 text-left text-sm transition-colors ${
-                          selectedSlot?.value === slot.value
+                          slot.taken
+                            ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                            : selectedSlot?.value === slot.value
                             ? 'bg-blue-50 text-blue-700 font-semibold'
                             : 'text-gray-700 hover:bg-gray-50'
                         }`}

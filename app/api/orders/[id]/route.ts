@@ -162,10 +162,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           .from('drivers').select('telegram_id').eq('id', updated.driver_id).single<Pick<Driver, 'telegram_id'>>()
         if (driverRecord?.telegram_id) {
           const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
-          const keyboard: Record<string, { text: string; callback_data: string }[][]> = {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const keyboard: Record<string, any[][]> = {
             preparing:  [[{ text: '🛵 On the way', callback_data: `on_the_way:${params.id}` }]],
             on_the_way: [
-              [{ text: '🗺️ Open in Waze', url: wazeUrl } as { text: string; callback_data: string }],
+              [{ text: '🗺️ Open in Waze', url: wazeUrl }],
               [{ text: '✅ Delivered', callback_data: `delivered:${params.id}` }],
             ],
           }
