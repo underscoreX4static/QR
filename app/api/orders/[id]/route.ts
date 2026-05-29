@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, editMessageReplyMarkup } from '@/lib/telegram'
 import { calcOrderEarnings } from '@/lib/earnings'
@@ -162,11 +163,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           .from('drivers').select('telegram_id').eq('id', updated.driver_id).single<Pick<Driver, 'telegram_id'>>()
         if (driverRecord?.telegram_id) {
           const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const keyboard: Record<string, any[][]> = {
+          const keyboard: Record<string, TelegramBot.InlineKeyboardButton[][]> = {
             preparing:  [[{ text: '🛵 On the way', callback_data: `on_the_way:${params.id}` }]],
             on_the_way: [
-              [{ text: '🗺️ Open in Waze', url: wazeUrl }],
+              [{ text: '🗺️ Open in Waze', url: wazeUrl } as TelegramBot.InlineKeyboardButton],
               [{ text: '✅ Delivered', callback_data: `delivered:${params.id}` }],
             ],
           }

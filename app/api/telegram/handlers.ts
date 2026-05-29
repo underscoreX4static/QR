@@ -281,7 +281,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '🗺️ Open in Waze', url: wazeUrl }],
+            [{ text: '🗺️ Open in Waze', url: wazeUrl } as TelegramBot.InlineKeyboardButton],
             [{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }],
           ],
         },
