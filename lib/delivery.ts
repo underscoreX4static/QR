@@ -1,6 +1,6 @@
 // ─── Delivery fee ─────────────────────────────────────────────────────────────
 
-export const FREE_DELIVERY_THRESHOLD = 100 // AUD
+export const FREE_DELIVERY_THRESHOLD = 150 // AUD
 export const DELIVERY_FEE = 10             // AUD
 
 export function calculateDeliveryFee(subtotal: number): number {
