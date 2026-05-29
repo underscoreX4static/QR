@@ -21,7 +21,7 @@ export async function GET() {
       getAvailableSlots(now, taken),
     ])
 
-    return NextResponse.json({ open, nextOpen, slots }, {
+    return NextResponse.json({ open, nextOpen, slots, _debug_taken: taken }, {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (err) {
