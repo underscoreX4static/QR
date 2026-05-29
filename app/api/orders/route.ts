@@ -171,7 +171,7 @@ export async function POST(req: NextRequest) {
     const result = ownerResults[i]
     if (result.status === 'fulfilled') {
       await supabaseAdmin.from('settings').upsert(
-        { key: `owner_msg:${order.id}:${ownerList[i].telegram_id}`, value: String(result.value.message_id) },
+        { key: `owner_msg:${order.id}:${ownerList[i].telegram_id}`, value: String(result.value.message_id), updated_at: new Date().toISOString(), updated_by: 'system' },
         { onConflict: 'key' }
       )
     }
