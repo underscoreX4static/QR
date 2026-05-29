@@ -56,11 +56,17 @@ export default function SchedulePage() {
     return now.toISOString().slice(0, 10)
   })
 
-  useEffect(() => {
+  const loadOrders = () => {
     fetch('/api/admin/schedule')
       .then(r => r.json())
       .then(d => { setOrders(d.orders ?? []); setLoading(false) })
       .catch(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadOrders()
+    const interval = setInterval(loadOrders, 30_000)
+    return () => clearInterval(interval)
   }, [])
 
   // Dates available in data + today + tomorrow
@@ -74,18 +80,14 @@ export default function SchedulePage() {
   const dayOrders = orders.filter(o => brisDateStr(o.scheduled_at) === selectedDate)
     .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
 
-  // Build timeline: store hours 10-22 (or 11-24 on weekends)
-  const STORE_OPEN = 10
-  const STORE_CLOSE = 22
-  const HOURS = Array.from({ length: STORE_CLOSE - STORE_OPEN }, (_, i) => STORE_OPEN + i)
-
-  // Group orders by hour
+  // Group orders by hour — use actual hours from orders, not hardcoded range
   const byHour: Record<number, ScheduledOrder[]> = {}
   for (const o of dayOrders) {
     const h = brisHour(o.scheduled_at)
     if (!byHour[h]) byHour[h] = []
     byHour[h].push(o)
   }
+  const HOURS = Object.keys(byHour).map(Number).sort((a, b) => a - b)
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00Z')

@@ -10,8 +10,8 @@ import {
   DISCOUNT_THRESHOLD,
   DISCOUNT_RATE,
   calculateDiscount,
-  type DeliverySlot,
 } from '@/lib/delivery'
+import type { Slot } from '@/lib/slots'
 
 type Step = 'cart' | 'address' | 'schedule' | 'cash' | 'review'
 
@@ -57,8 +57,8 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
 
   // Schedule
   const [deliveryType, setDeliveryType] = useState<'asap' | 'scheduled'>('asap')
-  const [selectedSlot, setSelectedSlot] = useState<DeliverySlot | null>(null)
-  const [slots, setSlots] = useState<DeliverySlot[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [slots, setSlots] = useState<Slot[]>([])
   const [storeOpen, setStoreOpen] = useState(true)
   const [nextOpen, setNextOpen] = useState('')
 

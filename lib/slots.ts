@@ -37,7 +37,8 @@ export function brisComponents(utc: Date) {
 
 // Brisbane wall-clock → real UTC Date
 export function brisToUTC(year: number, month: number, day: number, hour: number, minute: number): Date {
-  return new Date(Date.UTC(year, month, day, hour - 10, minute))
+  // Use BRISBANE_OFFSET_MS subtraction to avoid negative-hour arithmetic
+  return new Date(Date.UTC(year, month, day, hour, minute) - BRISBANE_OFFSET_MS)
 }
 
 // Format a real UTC timestamp as Brisbane time label
