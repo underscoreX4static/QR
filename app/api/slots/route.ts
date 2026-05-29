@@ -13,6 +13,7 @@ export async function GET() {
       .not('status', 'in', '("cancelled","delivered")')
 
     const taken = (data ?? []).map((r: { scheduled_at: string }) => r.scheduled_at)
+    console.log('[slots] taken raw:', JSON.stringify(taken))
 
     const now = new Date()
     const weekHours = await getStoreHoursFromDB()
@@ -22,6 +23,7 @@ export async function GET() {
       getNextOpenTime(now),
       getAvailableSlots(now, taken),
     ])
+    console.log('[slots] taken matched:', slots.filter(s => s.taken).map(s => s.value))
 
     return NextResponse.json({ open, nextOpen, slots, weekHours }, {
       headers: { 'Cache-Control': 'no-store' },
