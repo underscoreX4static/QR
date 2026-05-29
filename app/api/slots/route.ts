@@ -10,7 +10,8 @@ export async function GET() {
       .from('orders')
       .select('scheduled_at')
       .not('scheduled_at', 'is', null)
-      .not('status', 'in', '("cancelled","delivered")')
+      .neq('status', 'cancelled')
+      .neq('status', 'delivered')
 
     const taken = (data ?? []).map((r: { scheduled_at: string }) => r.scheduled_at)
     const now = new Date()
