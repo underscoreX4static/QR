@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const driverId = searchParams.get('driver_id')
   const status = searchParams.get('status')
 
-  let query = supabaseAdmin.from('orders').select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at').order('created_at', { ascending: false })
+  let query = supabaseAdmin.from('orders').select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at').order('created_at', { ascending: false })
 
   if (userId) query = query.eq('user_id', userId)
   if (driverId) query = query.eq('driver_id', driverId)

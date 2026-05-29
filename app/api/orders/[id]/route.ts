@@ -42,7 +42,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const { data: order } = await supabaseAdmin
     .from('orders')
-    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at')
     .eq('id', params.id)
     .single<Order>()
 
@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   const { data: current } = await supabaseAdmin
     .from('orders')
-    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at')
     .eq('id', params.id)
     .single<Order>()
 
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .from('orders')
     .update(updates)
     .eq('id', params.id)
-    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,created_at,updated_at')
+    .select('id,user_id,qr_code_id,driver_id,status,delivery_address,delivery_fee,subtotal,total,notes,scheduled_at,created_at,updated_at')
     .single<Order>()
 
   if (error || !updated) {
