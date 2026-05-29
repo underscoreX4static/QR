@@ -205,7 +205,7 @@ export async function getAvailableSlots(now: Date = new Date(), takenSlots: stri
   const weekHours = await getStoreHoursFromDB()
   const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
-  const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000)
+  const minTime = new Date(local.getTime() + 30 * 60 * 1000)
 
   // Normalize taken slots to their 30-min bucket (floor minutes to 0 or 30)
   const takenBuckets = new Set(takenSlots.map((iso) => {
