@@ -23,7 +23,7 @@ export async function GET() {
     const taken = (orders ?? []).map((r: { scheduled_at: string }) => r.scheduled_at)
     const slots = buildSlots(now, weekHours, taken)
 
-    return NextResponse.json({ open, nextOpen, slots, _t: taken }, {
+    return NextResponse.json({ open, nextOpen, slots }, {
       headers: { 'Cache-Control': 'no-store' },
     })
   } catch (err) {

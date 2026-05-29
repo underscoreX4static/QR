@@ -57,7 +57,7 @@ export default function SchedulePage() {
   })
 
   const loadOrders = () => {
-    fetch('/api/admin/schedule')
+    fetch(`/api/admin/schedule?t=${Date.now()}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => { setOrders(d.orders ?? []); setLoading(false) })
       .catch(() => setLoading(false))
@@ -66,7 +66,12 @@ export default function SchedulePage() {
   useEffect(() => {
     loadOrders()
     const interval = setInterval(loadOrders, 30_000)
-    return () => clearInterval(interval)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadOrders() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [])
 
   // Dates available in data + today + tomorrow

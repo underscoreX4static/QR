@@ -11,5 +11,7 @@ export async function GET() {
     .order('scheduled_at', { ascending: true })
 
   if (error) return NextResponse.json({ orders: [] })
-  return NextResponse.json({ orders: data })
+  return NextResponse.json({ orders: data }, {
+    headers: { 'Cache-Control': 'no-store' },
+  })
 }

@@ -74,7 +74,9 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const remainingForDiscount = DISCOUNT_THRESHOLD - subtotal
 
   const fetchSlots = () => {
-    fetch('/api/slots')
+    // Cache-bust the URL and tell fetch to skip browser/WebView cache.
+    // Telegram Mini App on iOS aggressively caches GET responses.
+    fetch(`/api/slots?t=${Date.now()}`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((json) => {
         if (json.error) console.error('[slots]', json.error)
@@ -90,6 +92,16 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
 
   useEffect(() => {
     if (step === 'schedule') fetchSlots()
+  }, [step])
+
+  // Re-fetch slots whenever the Mini App becomes visible again
+  // (user backgrounded then reopened it — Telegram keeps the JS state alive)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && step === 'schedule') fetchSlots()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [step])
 
   // Reset address confirmation when address fields change
