@@ -90,18 +90,24 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
 
   useEffect(() => { fetchSlots() }, [])
 
+  // Live updates on the schedule step:
+  //  • initial fetch when entering the step
+  //  • poll every 15 s so slots booked by other customers grey out in real time
+  //  • re-fetch when the Mini App becomes visible again (Telegram backgrounded)
   useEffect(() => {
-    if (step === 'schedule') fetchSlots()
-  }, [step])
+    if (step !== 'schedule') return
 
-  // Re-fetch slots whenever the Mini App becomes visible again
-  // (user backgrounded then reopened it — Telegram keeps the JS state alive)
-  useEffect(() => {
+    fetchSlots()
+    const interval = setInterval(fetchSlots, 15_000)
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && step === 'schedule') fetchSlots()
+      if (document.visibilityState === 'visible') fetchSlots()
     }
     document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [step])
 
   // Reset address confirmation when address fields change
