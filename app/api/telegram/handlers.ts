@@ -234,15 +234,10 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     await clearOwnerButtons(orderId, `🍳 Order #${updated.id.slice(-6).toUpperCase()} — you're handling it`)
 
     // Ask driver for location to find nearest warehouse
+    const locationKeyboard = { keyboard: [[{ text: '📍 Share my location', request_location: true }]], resize_keyboard: true, one_time_keyboard: true }
     await sendMessage(chatId,
       `👨‍🍳 Order #${updated.id.slice(-6).toUpperCase()} — you're on it!\n\n📍 Share your location so I can tell you which warehouse to go to 👇`,
-      {
-        reply_markup: {
-          keyboard: [[{ text: '📍 Share my location', request_location: true }]],
-          resize_keyboard: true,
-          one_time_keyboard: true,
-        },
-      }
+      { reply_markup: locationKeyboard as TelegramBot.ReplyKeyboardMarkup }
     )
     return
   }
@@ -285,13 +280,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     await sendMessage(chatId,
       `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\n📍 Share your location to send ETA to customer 👇`,
       {
-        reply_markup: {
-          keyboard: [
-            [{ text: '📍 Share my location', request_location: true }],
-          ],
-          resize_keyboard: true,
-          one_time_keyboard: true,
-        },
+        reply_markup: { keyboard: [[{ text: '📍 Share my location', request_location: true }]], resize_keyboard: true, one_time_keyboard: true } as TelegramBot.ReplyKeyboardMarkup,
       }
     )
     // Send Waze + Delivered buttons separately
