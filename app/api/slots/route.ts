@@ -23,7 +23,9 @@ export async function GET() {
       getAvailableSlots(now, taken),
     ])
 
-    return NextResponse.json({ open, nextOpen, slots, weekHours })
+    return NextResponse.json({ open, nextOpen, slots, weekHours }, {
+      headers: { 'Cache-Control': 'no-store' },
+    })
   } catch (err) {
     console.error('Slots API error:', err)
     return NextResponse.json({ open: true, nextOpen: '', slots: [], error: String(err) })

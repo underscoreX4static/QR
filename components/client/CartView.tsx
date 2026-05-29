@@ -73,7 +73,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
   const remainingForDiscount = DISCOUNT_THRESHOLD - subtotal
 
-  useEffect(() => {
+  const fetchSlots = () => {
     fetch('/api/slots')
       .then((r) => r.json())
       .then((json) => {
@@ -84,7 +84,13 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
         if (!json.open) setDeliveryType('scheduled')
       })
       .catch((e) => console.error('[slots fetch]', e))
-  }, [])
+  }
+
+  useEffect(() => { fetchSlots() }, [])
+
+  useEffect(() => {
+    if (step === 'schedule') fetchSlots()
+  }, [step])
 
   // Reset address confirmation when address fields change
   useEffect(() => { setAddressConfirmed(false) }, [street, selectedSuburb])
