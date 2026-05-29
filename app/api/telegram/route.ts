@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     await handleUpdate(update)
     return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error('Webhook error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+    console.error('Webhook error:', JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
+    return NextResponse.json({ ok: true }) // Always return 200 to Telegram to avoid retries
   }
 }

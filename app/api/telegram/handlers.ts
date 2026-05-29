@@ -156,6 +156,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
   await answerCallbackQuery(query.id)
   if (!chatId || !data) return
 
+  try {
   const driver = await getDriver(telegramId)
 
   // ── confirm_order ──────────────────────────────────────────────────────────
@@ -380,6 +381,10 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     return
   }
 
+  } catch (err) {
+    console.error('Callback handler error:', JSON.stringify(err, Object.getOwnPropertyNames(err as object)))
+    await sendMessage(chatId, '⚠️ Something went wrong. Please try again.').catch(() => null)
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
