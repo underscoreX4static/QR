@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/qr',          label: 'QR',           icon: '🔳' },
   { href: '/admin/partners',    label: 'Partners',     icon: '🤝' },
   { href: '/admin/drivers',     label: 'Drivers',      icon: '🛵' },
+  { href: '/admin/warehouses',  label: 'Warehouses',   icon: '🏭' },
   { href: '/admin/settlements', label: 'Settlements',  icon: '💰' },
   { href: '/admin/settings',   label: 'Settings',     icon: '⚙️' },
 ]

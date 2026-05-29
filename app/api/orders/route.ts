@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage } from '@/lib/telegram'
 import { calculateDeliveryFee, calculateDiscount } from '@/lib/delivery'
+import { geocodeAddress } from '@/lib/geocoding'
 import type { Order, OrderItem, Driver } from '@/types'
 
 // GET /api/orders?user_id=xxx — orders for a user
@@ -98,6 +99,9 @@ export async function POST(req: NextRequest) {
   const discount = calculateDiscount(subtotal)
   const total = subtotal - discount + deliveryFee
 
+  // Geocode client address (best-effort, don't block order creation)
+  const coords = await geocodeAddress(delivery_address).catch(() => null)
+
   // Create order
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
@@ -111,6 +115,8 @@ export async function POST(req: NextRequest) {
       total,
       status: 'pending',
       scheduled_at: scheduled_at ?? null,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
     })
     .select()
     .single<Order>()

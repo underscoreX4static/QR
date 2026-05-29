@@ -2,6 +2,7 @@ import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, answerCallbackQuery, editMessageReplyMarkup } from '@/lib/telegram'
 import { calcOrderEarnings } from '@/lib/earnings'
+import { distanceKm, calcEtaMinutes, etaRange } from '@/lib/geocoding'
 import type { Driver, User, QRCode, Order } from '@/types'
 
 export async function handleUpdate(update: TelegramBot.Update) {
@@ -15,8 +16,17 @@ export async function handleUpdate(update: TelegramBot.Update) {
 async function handleMessage(msg: TelegramBot.Message) {
   const chatId = msg.chat.id
   const telegramId = String(msg.from?.id)
-  const text = msg.text?.trim()
 
+  // Handle driver location share (for ETA calculation)
+  if (msg.location) {
+    const driver = await getDriver(telegramId)
+    if (driver) {
+      await handleDriverLocation(chatId, telegramId, driver, msg.location)
+    }
+    return
+  }
+
+  const text = msg.text?.trim()
   if (!text) return
 
   if (text.startsWith('/start')) {
@@ -260,7 +270,7 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       .eq('id', orderId)
       .eq('driver_id', driver.id)
       .eq('status', 'preparing')
-      .select('id,delivery_address,user_id')
+      .select('id,delivery_address,user_id,lat,lng')
       .single()
 
     if (error || !updated) {
@@ -274,20 +284,29 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
+    // Store pending ETA order so we can calculate when driver shares location
+    await supabaseAdmin.from('settings').upsert(
+      { key: `pending_eta:${telegramId}`, value: orderId },
+      { onConflict: 'key' }
+    )
+
     const shortId = orderId.slice(-6).toUpperCase()
     const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
+
     await sendMessage(chatId,
-      `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\nTap when delivered 👇`,
+      `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\n📍 Share your location to send ETA to customer 👇`,
       {
         reply_markup: {
           inline_keyboard: [
             [{ text: '🗺️ Open in Waze', url: wazeUrl } as TelegramBot.InlineKeyboardButton],
             [{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }],
           ],
+          // Also prompt location share via keyboard
         },
       }
     )
 
+    // Notify customer without ETA for now — will update when driver shares location
     await notifyCustomer(updated.user_id, `🛵 Your order #${shortId} is on the way!`)
     return
   }
@@ -378,6 +397,52 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+async function handleDriverLocation(chatId: number, telegramId: string, driver: Driver, location: TelegramBot.Location) {
+  // Check if we're waiting for driver location to compute ETA
+  const { data: pending } = await supabaseAdmin
+    .from('settings').select('value').eq('key', `pending_eta:${telegramId}`).single()
+
+  if (!pending?.value) return
+
+  const orderId = pending.value
+  await supabaseAdmin.from('settings').delete().eq('key', `pending_eta:${telegramId}`)
+
+  const { data: order } = await supabaseAdmin
+    .from('orders')
+    .select('id,user_id,lat,lng,delivery_address')
+    .eq('id', orderId)
+    .single()
+
+  if (!order) return
+
+  // Find nearest active warehouse
+  const { data: warehouses } = await supabaseAdmin
+    .from('warehouses').select('lat,lng').eq('is_active', true)
+
+  const driverCoords = { lat: location.latitude, lng: location.longitude }
+
+  let etaMsg = ''
+  if (order.lat && order.lng && warehouses?.length) {
+    const clientCoords = { lat: order.lat, lng: order.lng }
+
+    // Pick nearest warehouse to driver
+    const nearest = warehouses.reduce((best: { lat: number; lng: number }, w: { lat: number; lng: number }) => {
+      return distanceKm(driverCoords, w) < distanceKm(driverCoords, best) ? w : best
+    })
+
+    const d1 = distanceKm(driverCoords, nearest)
+    const d2 = distanceKm(nearest, clientCoords)
+    const eta = calcEtaMinutes(d1, d2)
+    etaMsg = etaRange(eta)
+
+    await notifyCustomer(order.user_id, `🕐 Your driver is on the way! Estimated arrival: ${etaMsg}`)
+    await sendMessage(chatId, `✅ ETA sent to customer: ${etaMsg}`)
+  } else {
+    await sendMessage(chatId, `⚠️ Could not calculate ETA (missing coordinates). Customer already notified.`)
+  }
+
+  void driver
+}
 
 async function handleCancelReason(chatId: number, telegramId: string, driver: Driver, orderId: string, reason: string) {
   await supabaseAdmin.from('settings').delete().eq('key', `pending_cancel:${telegramId}`)
