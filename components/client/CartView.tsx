@@ -10,9 +10,6 @@ import {
   DISCOUNT_THRESHOLD,
   DISCOUNT_RATE,
   calculateDiscount,
-  isStoreOpen,
-  getNextOpenTime,
-  getAvailableSlots,
   type DeliverySlot,
 } from '@/lib/delivery'
 
@@ -75,19 +72,15 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const remainingForDiscount = DISCOUNT_THRESHOLD - subtotal
 
   useEffect(() => {
-    async function loadSchedule() {
-      const [open, next, takenRes] = await Promise.all([
-        isStoreOpen(),
-        getNextOpenTime(),
-        fetch('/api/slots').then((r) => r.json()).catch(() => ({ taken: [] })),
-      ])
-      const s = await getAvailableSlots(new Date(), takenRes.taken ?? [])
-      setStoreOpen(open)
-      setNextOpen(next)
-      setSlots(s)
-      if (!open) setDeliveryType('scheduled')
-    }
-    loadSchedule()
+    fetch('/api/slots')
+      .then((r) => r.json())
+      .then((json) => {
+        setStoreOpen(json.open ?? true)
+        setNextOpen(json.nextOpen ?? '')
+        setSlots(json.slots ?? [])
+        if (!json.open) setDeliveryType('scheduled')
+      })
+      .catch(() => {})
   }, [])
 
   // Suburb autocomplete
