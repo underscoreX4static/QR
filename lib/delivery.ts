@@ -151,7 +151,8 @@ export async function getStoreHoursFromDB(): Promise<Record<number, StoreHours>>
 }
 
 export function getStoreHours(date: Date, weekHours?: Record<number, StoreHours>): StoreHours {
-  const day = date.getDay()
+  // date is always a Brisbane-shifted Date (UTC value = Brisbane time), so use getUTCDay()
+  const day = date.getUTCDay()
   return (weekHours ?? FALLBACK_HOURS)[day] ?? FALLBACK_HOURS[day]
 }
 

@@ -52,6 +52,8 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const [selectedSuburb, setSelectedSuburb] = useState<{ suburb: string; postcode: string } | null>(null)
   const [notes, setNotes] = useState('')
   const [suburbSuggestions, setSuburbSuggestions] = useState<typeof BRISBANE_SUBURBS>([])
+  const [addressConfirmed, setAddressConfirmed] = useState(false)
+  const [streetTouched, setStreetTouched] = useState(false)
 
   // Schedule
   const [deliveryType, setDeliveryType] = useState<'asap' | 'scheduled'>('asap')
@@ -75,13 +77,17 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
     fetch('/api/slots')
       .then((r) => r.json())
       .then((json) => {
+        if (json.error) console.error('[slots]', json.error)
         setStoreOpen(json.open ?? true)
         setNextOpen(json.nextOpen ?? '')
         setSlots(json.slots ?? [])
         if (!json.open) setDeliveryType('scheduled')
       })
-      .catch(() => {})
+      .catch((e) => console.error('[slots fetch]', e))
   }, [])
+
+  // Reset address confirmation when address fields change
+  useEffect(() => { setAddressConfirmed(false) }, [street, selectedSuburb])
 
   // Suburb autocomplete
   useEffect(() => {
@@ -97,7 +103,8 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
     )
   }, [suburbInput])
 
-  const fullAddress = selectedSuburb
+  const isValidStreet = /^\d+\s+\S/.test(street.trim())
+  const fullAddress = selectedSuburb && isValidStreet
     ? `${street.trim()}, ${selectedSuburb.suburb} QLD ${selectedSuburb.postcode}, Australia`
     : ''
 
@@ -271,10 +278,18 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
               <label className="block text-sm text-gray-600 mb-1">Street address *</label>
               <input
                 value={street}
-                onChange={(e) => setStreet(e.target.value)}
+                onChange={(e) => { setStreet(e.target.value); setStreetTouched(true) }}
+                onBlur={() => setStreetTouched(true)}
                 placeholder="e.g. 42 Queen Street"
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  streetTouched && street.trim() && !isValidStreet
+                    ? 'border-red-400 bg-red-50'
+                    : 'border-gray-200'
+                }`}
               />
+              {streetTouched && street.trim() && !isValidStreet && (
+                <p className="text-xs text-red-600 mt-1">Please enter a valid street address (e.g. 42 Queen Street)</p>
+              )}
             </div>
 
             <div className="relative">
@@ -342,9 +357,31 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
               </p>
             </div>
 
+            {/* Address confirmation card */}
+            {isValidStreet && selectedSuburb && (
+              <div className={`rounded-2xl border-2 p-4 transition-all ${
+                addressConfirmed ? 'border-green-500 bg-green-50' : 'border-blue-200 bg-blue-50'
+              }`}>
+                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Delivery address</p>
+                <p className="text-sm font-semibold text-gray-900 mb-3">{fullAddress}</p>
+                {!addressConfirmed ? (
+                  <button
+                    onClick={() => setAddressConfirmed(true)}
+                    className="w-full bg-blue-600 text-white rounded-xl py-2.5 text-sm font-semibold active:scale-95 transition-transform"
+                  >
+                    Yes, this address is correct
+                  </button>
+                ) : (
+                  <p className="text-sm text-green-700 font-medium flex items-center gap-1.5">
+                    <span>✅</span> Address confirmed
+                  </p>
+                )}
+              </div>
+            )}
+
             <button
               onClick={() => setStep('schedule')}
-              disabled={!street.trim() || !selectedSuburb}
+              disabled={!isValidStreet || !selectedSuburb || !addressConfirmed}
               className="w-full bg-blue-600 text-white rounded-2xl py-4 font-semibold disabled:opacity-50 active:scale-95 transition-transform"
             >
               Continue
