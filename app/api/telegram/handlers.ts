@@ -226,10 +226,8 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     })
 
     // Store pending_preparing so location handler can send the full briefing
-    await supabaseAdmin.from('settings').upsert(
-      { key: `pending_preparing:${telegramId}`, value: orderId },
-      { onConflict: 'key' }
-    )
+    await supabaseAdmin.from('settings').delete().eq('key', `pending_preparing:${telegramId}`)
+    await supabaseAdmin.from('settings').insert({ key: `pending_preparing:${telegramId}`, value: orderId })
 
     await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${updated.id.slice(-6).toUpperCase()} is being prepared!`)
     await clearOwnerButtons(orderId, `🍳 Order #${updated.id.slice(-6).toUpperCase()} — you're handling it`)
@@ -269,10 +267,8 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     })
 
     // Store pending ETA order so we can calculate when driver shares location
-    await supabaseAdmin.from('settings').upsert(
-      { key: `pending_eta:${telegramId}`, value: orderId },
-      { onConflict: 'key' }
-    )
+    await supabaseAdmin.from('settings').delete().eq('key', `pending_eta:${telegramId}`)
+    await supabaseAdmin.from('settings').insert({ key: `pending_eta:${telegramId}`, value: orderId })
 
     const shortId = orderId.slice(-6).toUpperCase()
     const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
