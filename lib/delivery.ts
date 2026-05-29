@@ -150,16 +150,34 @@ export async function getStoreHoursFromDB(): Promise<Record<number, StoreHours>>
   return FALLBACK_HOURS
 }
 
-export function getStoreHours(date: Date, weekHours?: Record<number, StoreHours>): StoreHours {
-  // date is always a Brisbane-shifted Date (UTC value = Brisbane time), so use getUTCDay()
-  const day = date.getUTCDay()
-  return (weekHours ?? FALLBACK_HOURS)[day] ?? FALLBACK_HOURS[day]
+// Brisbane is UTC+10, no DST
+const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000
+
+// Returns { year, month, day, weekday, hour, minute } in Brisbane local time
+function brisbaneComponents(utc: Date) {
+  const t = new Date(utc.getTime() + BRISBANE_OFFSET_MS)
+  return {
+    year:    t.getUTCFullYear(),
+    month:   t.getUTCMonth(),
+    day:     t.getUTCDate(),
+    weekday: t.getUTCDay(),
+    hour:    t.getUTCHours(),
+    minute:  t.getUTCMinutes(),
+  }
 }
 
-// Returns Brisbane local time from a UTC date
+// Convert a Brisbane wall-clock time (year/month/day/hour/min) to a real UTC Date
+function brisbaneToUTC(year: number, month: number, day: number, hour: number, minute: number): Date {
+  return new Date(Date.UTC(year, month, day, hour, minute) - BRISBANE_OFFSET_MS)
+}
+
+export function getStoreHours(weekday: number, weekHours?: Record<number, StoreHours>): StoreHours {
+  return (weekHours ?? FALLBACK_HOURS)[weekday] ?? FALLBACK_HOURS[weekday]
+}
+
+// Keep toBrisbaneTime exported — used in handlers.ts for display purposes only
 export function toBrisbaneTime(date: Date): Date {
-  // Brisbane is UTC+10, no DST
-  return new Date(date.getTime() + 10 * 60 * 60 * 1000)
+  return new Date(date.getTime() + BRISBANE_OFFSET_MS)
 }
 
 export async function isStoreOpen(now: Date = new Date()): Promise<boolean> {
@@ -169,23 +187,22 @@ export async function isStoreOpen(now: Date = new Date()): Promise<boolean> {
   if (data?.value === 'closed') return false
 
   const weekHours = await getStoreHoursFromDB()
-  const local = toBrisbaneTime(now)
-  const hours = local.getUTCHours() + local.getUTCMinutes() / 60
-  const { open, close } = getStoreHours(local, weekHours)
-  return hours >= open && hours < close
+  const { weekday, hour, minute } = brisbaneComponents(now)
+  const { open, close } = getStoreHours(weekday, weekHours)
+  const brisHour = hour + minute / 60
+  return brisHour >= open && brisHour < close
 }
 
 export async function getNextOpenTime(now: Date = new Date()): Promise<string> {
   const weekHours = await getStoreHoursFromDB()
-  const local = toBrisbaneTime(now)
-  const hours = local.getUTCHours() + local.getUTCMinutes() / 60
-  const { open, close } = getStoreHours(local, weekHours)
+  const { weekday, hour, minute } = brisbaneComponents(now)
+  const { open, close } = getStoreHours(weekday, weekHours)
+  const brisHour = hour + minute / 60
 
-  if (hours < open) return `today at ${open}:00`
-  if (hours >= close) {
-    const tomorrow = new Date(local)
-    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1)
-    const tomorrowOpen = getStoreHours(tomorrow, weekHours).open
+  if (brisHour < open) return `today at ${open}:00`
+  if (brisHour >= close) {
+    const tomorrowWeekday = (weekday + 1) % 7
+    const tomorrowOpen = getStoreHours(tomorrowWeekday, weekHours).open
     return `tomorrow at ${tomorrowOpen}:00`
   }
   return 'soon'
@@ -203,11 +220,10 @@ export interface DeliverySlot {
 
 export async function getAvailableSlots(now: Date = new Date(), takenSlots: string[] = []): Promise<DeliverySlot[]> {
   const weekHours = await getStoreHoursFromDB()
-  const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
-  const minTime = new Date(local.getTime() + 30 * 60 * 1000)
+  const minTime = new Date(now.getTime() + 30 * 60 * 1000)
 
-  // Normalize taken slots to their 30-min bucket (floor minutes to 0 or 30)
+  // Taken slots: normalize each to its 30-min bucket in real UTC
   const takenBuckets = new Set(takenSlots.map((iso) => {
     const d = new Date(iso)
     d.setUTCMinutes(d.getUTCMinutes() < 30 ? 0 : 30)
@@ -216,32 +232,29 @@ export async function getAvailableSlots(now: Date = new Date(), takenSlots: stri
     return d.toISOString()
   }))
 
-  // Today + tomorrow
-  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
-    const base = new Date(local)
-    base.setUTCDate(base.getUTCDate() + dayOffset)
-    base.setUTCSeconds(0)
-    base.setUTCMilliseconds(0)
+  const { year, month, day } = brisbaneComponents(now)
 
-    const { open, close } = getStoreHours(base, weekHours)
+  for (let dayOffset = 0; dayOffset <= 1; dayOffset++) {
+    // Get the Brisbane date for this offset by advancing a UTC midnight
+    const dayBase = new Date(Date.UTC(year, month, day + dayOffset))
+    const brisComponents = brisbaneComponents(dayBase)
+    const { open, close } = getStoreHours(brisComponents.weekday, weekHours)
     const dayLabel = dayOffset === 0 ? 'Today' : 'Tomorrow'
 
     for (let h = open; h < close; h++) {
       for (const min of [0, 30]) {
-        const slot = new Date(base)
-        slot.setUTCHours(h)
-        slot.setUTCMinutes(min)
+        const slot = brisbaneToUTC(brisComponents.year, brisComponents.month, brisComponents.day, h, min)
         if (slot < minTime) continue
 
-        const slotIso = slot.toISOString()
-        const taken = takenBuckets.has(slotIso)
+        const iso = slot.toISOString()
+        const taken = takenBuckets.has(iso)
         const hour12 = h % 12 === 0 ? 12 : h % 12
         const ampm = h < 12 ? 'AM' : 'PM'
         const minLabel = min === 0 ? '00' : '30'
 
         slots.push({
           label: `${dayLabel} ${hour12}:${minLabel} ${ampm}${taken ? ' — full' : ''}`,
-          value: slotIso,
+          value: iso,
           date: slot,
           taken,
         })
