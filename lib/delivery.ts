@@ -205,37 +205,42 @@ export async function getAvailableSlots(now: Date = new Date(), takenSlots: stri
   const local = toBrisbaneTime(now)
   const slots: DeliverySlot[] = []
   const minTime = new Date(local.getTime() + 2 * 60 * 60 * 1000)
-  const takenSet = new Set(takenSlots)
 
-  for (let dayOffset = 0; dayOffset <= 2; dayOffset++) {
-    const base = new Date(local)
-    base.setUTCDate(base.getUTCDate() + dayOffset)
-    base.setUTCSeconds(0)
-    base.setUTCMilliseconds(0)
+  // Normalize taken slots to their 30-min bucket (floor minutes to 0 or 30)
+  const takenBuckets = new Set(takenSlots.map((iso) => {
+    const d = new Date(iso)
+    d.setUTCMinutes(d.getUTCMinutes() < 30 ? 0 : 30)
+    d.setUTCSeconds(0)
+    d.setUTCMilliseconds(0)
+    return d.toISOString()
+  }))
 
-    const { open, close } = getStoreHours(base, weekHours)
-    const dayLabel = dayOffset === 0 ? 'Today' : dayOffset === 1 ? 'Tomorrow' : base.toLocaleDateString('en-AU', { weekday: 'long' })
+  // Today only
+  const base = new Date(local)
+  base.setUTCSeconds(0)
+  base.setUTCMilliseconds(0)
 
-    for (let h = open; h < close; h++) {
-      for (const min of [0, 30]) {
-        const slot = new Date(base)
-        slot.setUTCHours(h)
-        slot.setUTCMinutes(min)
-        if (slot < minTime) continue
+  const { open, close } = getStoreHours(base, weekHours)
 
-        const slotIso = slot.toISOString()
-        const taken = takenSet.has(slotIso)
-        const hour12 = h % 12 === 0 ? 12 : h % 12
-        const ampm = h < 12 ? 'AM' : 'PM'
-        const minLabel = min === 0 ? '00' : '30'
+  for (let h = open; h < close; h++) {
+    for (const min of [0, 30]) {
+      const slot = new Date(base)
+      slot.setUTCHours(h)
+      slot.setUTCMinutes(min)
+      if (slot < minTime) continue
 
-        slots.push({
-          label: `${dayLabel} ${hour12}:${minLabel} ${ampm}${taken ? ' — full' : ''}`,
-          value: slotIso,
-          date: slot,
-          taken,
-        })
-      }
+      const slotIso = slot.toISOString()
+      const taken = takenBuckets.has(slotIso)
+      const hour12 = h % 12 === 0 ? 12 : h % 12
+      const ampm = h < 12 ? 'AM' : 'PM'
+      const minLabel = min === 0 ? '00' : '30'
+
+      slots.push({
+        label: `${hour12}:${minLabel} ${ampm}${taken ? ' — full' : ''}`,
+        value: slotIso,
+        date: slot,
+        taken,
+      })
     }
   }
 
