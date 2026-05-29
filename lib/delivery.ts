@@ -2,9 +2,15 @@
 
 export const FREE_DELIVERY_THRESHOLD = 150 // AUD
 export const DELIVERY_FEE = 10             // AUD
+export const DISCOUNT_THRESHOLD = 250      // AUD — 10% off subtotal
+export const DISCOUNT_RATE = 0.10
 
 export function calculateDeliveryFee(subtotal: number): number {
   return subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE
+}
+
+export function calculateDiscount(subtotal: number): number {
+  return subtotal >= DISCOUNT_THRESHOLD ? subtotal * DISCOUNT_RATE : 0
 }
 
 // ─── Brisbane suburbs + postcodes ─────────────────────────────────────────────

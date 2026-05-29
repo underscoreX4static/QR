@@ -7,6 +7,9 @@ import {
   BRISBANE_SUBURBS,
   FREE_DELIVERY_THRESHOLD,
   DELIVERY_FEE,
+  DISCOUNT_THRESHOLD,
+  DISCOUNT_RATE,
+  calculateDiscount,
   isStoreOpen,
   getNextOpenTime,
   getAvailableSlots,
@@ -64,9 +67,12 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   const [cashConfirmed, setCashConfirmed] = useState(false)
 
   const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE
-  const total = subtotal + deliveryFee
+  const discount = calculateDiscount(subtotal)
+  const total = subtotal - discount + deliveryFee
   const isFreeDelivery = deliveryFee === 0
+  const hasDiscount = discount > 0
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
+  const remainingForDiscount = DISCOUNT_THRESHOLD - subtotal
 
   useEffect(() => {
     async function loadSchedule() {
@@ -174,9 +180,45 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                   ))}
                 </div>
 
-                {remainingForFree > 0 && (
-                  <div className="bg-blue-50 rounded-2xl px-4 py-3 text-sm text-blue-700">
-                    Add <span className="font-bold">${remainingForFree.toFixed(2)}</span> more for free delivery!
+                {/* Free delivery progress */}
+                {!isFreeDelivery && (
+                  <div className="bg-blue-50 rounded-2xl px-4 py-3 space-y-2">
+                    <div className="flex justify-between text-xs text-blue-700">
+                      <span>🚚 Add <span className="font-bold">${remainingForFree.toFixed(2)}</span> more for free delivery</span>
+                      <span className="font-semibold">${subtotal.toFixed(2)} / ${FREE_DELIVERY_THRESHOLD}</span>
+                    </div>
+                    <div className="w-full h-2 bg-blue-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min((subtotal / FREE_DELIVERY_THRESHOLD) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {isFreeDelivery && (
+                  <div className="bg-green-50 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-sm text-green-700">
+                    <span>✅</span><span className="font-semibold">Free delivery unlocked!</span>
+                  </div>
+                )}
+
+                {/* 10% discount progress */}
+                {!hasDiscount && (
+                  <div className="bg-purple-50 rounded-2xl px-4 py-3 space-y-2">
+                    <div className="flex justify-between text-xs text-purple-700">
+                      <span>🎁 Add <span className="font-bold">${remainingForDiscount.toFixed(2)}</span> more for {Math.round(DISCOUNT_RATE * 100)}% off</span>
+                      <span className="font-semibold">${subtotal.toFixed(2)} / ${DISCOUNT_THRESHOLD}</span>
+                    </div>
+                    <div className="w-full h-2 bg-purple-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min((subtotal / DISCOUNT_THRESHOLD) * 100, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {hasDiscount && (
+                  <div className="bg-purple-50 rounded-2xl px-4 py-2.5 flex items-center gap-2 text-sm text-purple-700">
+                    <span>🎉</span><span className="font-semibold">{Math.round(DISCOUNT_RATE * 100)}% discount applied — you save ${discount.toFixed(2)}!</span>
                   </div>
                 )}
 
@@ -184,6 +226,11 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
                   </div>
+                  {hasDiscount && (
+                    <div className="flex justify-between text-sm text-purple-600 font-medium">
+                      <span>10% discount</span><span>−${discount.toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Delivery</span>
                     {isFreeDelivery
@@ -475,6 +522,11 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
                 </div>
+                {hasDiscount && (
+                  <div className="flex justify-between text-sm text-purple-600 font-medium">
+                    <span>10% discount</span><span>−${discount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm text-gray-500">
                   <span>Delivery</span>
                   {isFreeDelivery
