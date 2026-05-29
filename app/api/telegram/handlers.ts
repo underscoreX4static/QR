@@ -204,12 +204,13 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const orderId = data.split(':')[1]
     if (!orderId || orderId.length > 36 || !driver?.is_owner) return
 
+    // Update status first
     const { data: updated, error } = await supabaseAdmin
       .from('orders')
       .update({ driver_id: driver.id, status: 'preparing' })
       .eq('id', orderId)
       .in('status', ['confirmed', 'pending'])
-      .select('id,delivery_address,delivery_fee,user_id')
+      .select('id,delivery_address,delivery_fee,user_id,lat,lng')
       .single()
 
     if (error || !updated) {
@@ -223,39 +224,26 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       changed_by: `driver:${driver.id}`,
     })
 
-    // Build item checklist + earnings
-    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity,unit_price_sell,unit_price_cost').eq('order_id', orderId)
-    const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
-    const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
-    const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
-    const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
-    const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-    const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
-    const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
-      const v = variantMap[i.variant_id]
-      const name = v ? (productMap[v.product_id] ?? '?') : '?'
-      return `  ☐ ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
-    }).join('\n')
+    // Store pending_preparing so location handler can send the full briefing
+    await supabaseAdmin.from('settings').upsert(
+      { key: `pending_preparing:${telegramId}`, value: orderId },
+      { onConflict: 'key' }
+    )
 
-    const earnings = await calcOrderEarnings(orderId, (updated as { delivery_fee: number }).delivery_fee)
+    await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${updated.id.slice(-6).toUpperCase()} is being prepared!`)
+    await clearOwnerButtons(orderId, `🍳 Order #${updated.id.slice(-6).toUpperCase()} — you're handling it`)
 
-    const shortId = orderId.slice(-6).toUpperCase()
-    let prepMsg = `👨‍🍳 Order #${shortId} — you're on it!\n📍 ${updated.delivery_address}`
-    if (itemLines) prepMsg += `\n\n📦 Items to pick up:\n${itemLines}`
-    prepMsg += `\n\n💰 Your earnings: $${earnings.driverShare.toFixed(2)}`
-    if (earnings.deliveryFee > 0) prepMsg += ` (delivery $${earnings.deliveryFee.toFixed(2)} + 50% profit $${(earnings.profit * 0.5).toFixed(2)})`
-    prepMsg += `\n\nTap when you're on the way 👇`
-
-    await sendMessage(chatId, prepMsg, {
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '🛵 On the way', callback_data: `on_the_way:${orderId}` },
-        ]],
-      },
-    })
-
-    await notifyCustomer(updated.user_id, `👨‍🍳 Your order #${shortId} is being prepared!`)
-    await clearOwnerButtons(orderId, `🍳 Order #${shortId} — you're handling it`)
+    // Ask driver for location to find nearest warehouse
+    await sendMessage(chatId,
+      `👨‍🍳 Order #${updated.id.slice(-6).toUpperCase()} — you're on it!\n\n📍 Share your location so I can tell you which warehouse to go to 👇`,
+      {
+        reply_markup: {
+          keyboard: [[{ text: '📍 Share my location', request_location: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    )
     return
   }
 
@@ -293,20 +281,30 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
     const shortId = orderId.slice(-6).toUpperCase()
     const wazeUrl = `https://waze.com/ul?q=${encodeURIComponent(updated.delivery_address)}&navigate=yes`
 
+    // Send inline actions + reply keyboard for location share
     await sendMessage(chatId,
       `🛵 Order #${shortId} — on the way!\n📍 ${updated.delivery_address}\n\n📍 Share your location to send ETA to customer 👇`,
       {
         reply_markup: {
-          inline_keyboard: [
-            [{ text: '🗺️ Open in Waze', url: wazeUrl } as TelegramBot.InlineKeyboardButton],
-            [{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }],
+          keyboard: [
+            [{ text: '📍 Share my location', request_location: true }],
           ],
-          // Also prompt location share via keyboard
+          resize_keyboard: true,
+          one_time_keyboard: true,
         },
       }
     )
+    // Send Waze + Delivered buttons separately
+    await sendMessage(chatId, 'Tap when delivered 👇', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🗺️ Open in Waze', url: wazeUrl } as TelegramBot.InlineKeyboardButton],
+          [{ text: '✅ Delivered', callback_data: `delivered:${orderId}` }],
+        ],
+      },
+    })
 
-    // Notify customer without ETA for now — will update when driver shares location
+    // Notify customer — ETA will be sent once driver shares location
     await notifyCustomer(updated.user_id, `🛵 Your order #${shortId} is on the way!`)
     return
   }
@@ -398,47 +396,91 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function handleDriverLocation(chatId: number, telegramId: string, driver: Driver, location: TelegramBot.Location) {
-  // Check if we're waiting for driver location to compute ETA
-  const { data: pending } = await supabaseAdmin
-    .from('settings').select('value').eq('key', `pending_eta:${telegramId}`).single()
-
-  if (!pending?.value) return
-
-  const orderId = pending.value
-  await supabaseAdmin.from('settings').delete().eq('key', `pending_eta:${telegramId}`)
-
-  const { data: order } = await supabaseAdmin
-    .from('orders')
-    .select('id,user_id,lat,lng,delivery_address')
-    .eq('id', orderId)
-    .single()
-
-  if (!order) return
-
-  // Find nearest active warehouse
-  const { data: warehouses } = await supabaseAdmin
-    .from('warehouses').select('lat,lng').eq('is_active', true)
-
   const driverCoords = { lat: location.latitude, lng: location.longitude }
 
-  let etaMsg = ''
-  if (order.lat && order.lng && warehouses?.length) {
-    const clientCoords = { lat: order.lat, lng: order.lng }
+  const { data: warehouses } = await supabaseAdmin
+    .from('warehouses').select('id,name,address,lat,lng').eq('is_active', true)
+  const activeWarehouses = (warehouses ?? []).filter((w: { lat: number | null; lng: number | null }) => w.lat && w.lng) as { id: string; name: string; address: string; lat: number; lng: number }[]
 
-    // Pick nearest warehouse to driver
-    const nearest = warehouses.reduce((best: { lat: number; lng: number }, w: { lat: number; lng: number }) => {
-      return distanceKm(driverCoords, w) < distanceKm(driverCoords, best) ? w : best
+  // ── Case 1: pending_preparing → send warehouse briefing ──────────────────
+  const { data: pendingPrep } = await supabaseAdmin
+    .from('settings').select('value').eq('key', `pending_preparing:${telegramId}`).single()
+
+  if (pendingPrep?.value) {
+    await supabaseAdmin.from('settings').delete().eq('key', `pending_preparing:${telegramId}`)
+    const orderId = pendingPrep.value
+
+    const { data: order } = await supabaseAdmin
+      .from('orders').select('id,delivery_address,delivery_fee,lat,lng').eq('id', orderId).single()
+    if (!order) return
+
+    // Nearest warehouse to driver
+    let warehouseLine = ''
+    if (activeWarehouses.length) {
+      const nearest = activeWarehouses.reduce((best, w) =>
+        distanceKm(driverCoords, w) < distanceKm(driverCoords, best) ? w : best
+      )
+      warehouseLine = `🏭 Pick up from: ${nearest.name}\n📍 ${nearest.address}`
+    }
+
+    // Items checklist + earnings
+    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity,unit_price_sell,unit_price_cost').eq('order_id', orderId)
+    const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
+    const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
+    const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
+    const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
+    const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
+    const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+    const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
+      const v = variantMap[i.variant_id]
+      const name = v ? (productMap[v.product_id] ?? '?') : '?'
+      return `  ☐ ${i.quantity}× ${name}${(v as { size?: string })?.size ? ` ${(v as { size: string }).size}` : ''}`
+    }).join('\n')
+
+    const earnings = await calcOrderEarnings(orderId, order.delivery_fee)
+    const shortId = orderId.slice(-6).toUpperCase()
+
+    let msg = `👨‍🍳 Order #${shortId}\n\n`
+    if (warehouseLine) msg += `${warehouseLine}\n\n`
+    if (itemLines) msg += `📦 Items:\n${itemLines}\n\n`
+    msg += `🚚 Deliver to: ${order.delivery_address}\n\n`
+    msg += `💰 Your earnings: $${earnings.driverShare.toFixed(2)}`
+    if (earnings.deliveryFee > 0) msg += ` (delivery $${earnings.deliveryFee.toFixed(2)} + 50% profit $${(earnings.profit * 0.5).toFixed(2)})`
+    msg += `\n\nTap when you're on the way 👇`
+
+    await sendMessage(chatId, msg, {
+      reply_markup: {
+        inline_keyboard: [[{ text: '🛵 On the way', callback_data: `on_the_way:${orderId}` }]],
+      },
     })
+    return
+  }
 
-    const d1 = distanceKm(driverCoords, nearest)
-    const d2 = distanceKm(nearest, clientCoords)
-    const eta = calcEtaMinutes(d1, d2)
-    etaMsg = etaRange(eta)
+  // ── Case 2: pending_eta → compute and send ETA to customer ───────────────
+  const { data: pendingEta } = await supabaseAdmin
+    .from('settings').select('value').eq('key', `pending_eta:${telegramId}`).single()
 
-    await notifyCustomer(order.user_id, `🕐 Your driver is on the way! Estimated arrival: ${etaMsg}`)
-    await sendMessage(chatId, `✅ ETA sent to customer: ${etaMsg}`)
-  } else {
-    await sendMessage(chatId, `⚠️ Could not calculate ETA (missing coordinates). Customer already notified.`)
+  if (pendingEta?.value) {
+    await supabaseAdmin.from('settings').delete().eq('key', `pending_eta:${telegramId}`)
+    const orderId = pendingEta.value
+
+    const { data: order } = await supabaseAdmin
+      .from('orders').select('id,user_id,lat,lng').eq('id', orderId).single()
+    if (!order) return
+
+    if (order.lat && order.lng && activeWarehouses.length) {
+      const clientCoords = { lat: order.lat, lng: order.lng }
+      const nearest = activeWarehouses.reduce((best, w) =>
+        distanceKm(driverCoords, w) < distanceKm(driverCoords, best) ? w : best
+      )
+      const eta = calcEtaMinutes(distanceKm(driverCoords, nearest), distanceKm(nearest, clientCoords))
+      const range = etaRange(eta)
+      await notifyCustomer(order.user_id, `🕐 Your driver is on the way! Estimated arrival: ${range}`)
+      await sendMessage(chatId, `✅ ETA sent to customer: ${range}`)
+    } else {
+      await sendMessage(chatId, `⚠️ Could not calculate ETA — no coordinates available.`)
+    }
+    return
   }
 
   void driver
