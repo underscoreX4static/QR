@@ -166,10 +166,6 @@ function brisbaneComponents(utc: Date) {
   }
 }
 
-// Convert a Brisbane wall-clock time (year/month/day/hour/min) to a real UTC Date
-function brisbaneToUTC(year: number, month: number, day: number, hour: number, minute: number): Date {
-  return new Date(Date.UTC(year, month, day, hour, minute) - BRISBANE_OFFSET_MS)
-}
 
 export function getStoreHours(weekday: number, weekHours?: Record<number, StoreHours>): StoreHours {
   return (weekHours ?? FALLBACK_HOURS)[weekday] ?? FALLBACK_HOURS[weekday]
