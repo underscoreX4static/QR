@@ -354,20 +354,19 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
 
         {/* ── STEP 3: Schedule ─────────────────────────────────────────────── */}
         {step === 'schedule' && (
-          <div className="space-y-4">
+          <div className="flex flex-col gap-3">
             {!storeOpen && (
               <div className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 text-sm text-blue-800">
                 🕙 <span className="font-bold">We&apos;re closed.</span> Opens {nextOpen} — please schedule a time slot below.
               </div>
             )}
+
             {/* ASAP option — only shown when store is open */}
             {storeOpen && (
               <button
                 onClick={() => setDeliveryType('asap')}
                 className={`w-full rounded-2xl p-4 border-2 text-left transition-all ${
-                  deliveryType === 'asap'
-                    ? 'border-blue-600 bg-blue-50'
-                    : 'border-gray-200 bg-white'
+                  deliveryType === 'asap' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -384,37 +383,36 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
             <button
               onClick={() => setDeliveryType('scheduled')}
               className={`w-full rounded-2xl p-4 border-2 text-left transition-all ${
-                deliveryType === 'scheduled'
-                  ? 'border-blue-600 bg-blue-50'
-                  : 'border-gray-200 bg-white'
+                deliveryType === 'scheduled' ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white'
               }`}
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">🗓️</span>
                 <div>
                   <p className="font-semibold text-gray-900">Schedule for later</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Choose a time at least 2 hours from now</p>
+                  <p className="text-xs text-gray-500 mt-0.5">Choose a time — today only</p>
                 </div>
               </div>
             </button>
 
+            {/* Slots grid — compact, no scroll needed */}
             {deliveryType === 'scheduled' && (
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 {slots.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-gray-400">No slots available</p>
+                  <p className="px-4 py-6 text-center text-sm text-gray-400">No slots available today</p>
                 ) : (
-                  <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
+                  <div className="grid grid-cols-3 gap-px bg-gray-100">
                     {slots.map((slot) => (
                       <button
                         key={slot.value}
                         onClick={() => { if (!slot.taken) setSelectedSlot(slot) }}
                         disabled={slot.taken}
-                        className={`w-full px-4 py-3 text-left text-sm transition-colors ${
+                        className={`py-3 text-sm font-medium transition-colors ${
                           slot.taken
-                            ? 'text-gray-300 cursor-not-allowed bg-gray-50'
+                            ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
                             : selectedSlot?.value === slot.value
-                            ? 'bg-blue-50 text-blue-700 font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white text-gray-700 active:bg-blue-50'
                         }`}
                       >
                         {slot.label}
@@ -424,13 +422,6 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 )}
               </div>
             )}
-
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-2">
-              <span className="text-lg leading-none mt-0.5">💵</span>
-              <p className="text-sm text-amber-800">
-                <span className="font-bold">Reminder:</span> payment is cash only upon delivery.
-              </p>
-            </div>
 
             <button
               onClick={() => setStep('cash')}
