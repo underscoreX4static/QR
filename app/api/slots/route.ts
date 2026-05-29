@@ -14,8 +14,7 @@ export async function GET() {
         .from('orders')
         .select('scheduled_at')
         .not('scheduled_at', 'is', null)
-        .neq('status', 'cancelled')
-        .neq('status', 'delivered'),
+        .in('status', ['pending', 'confirmed', 'preparing', 'on_the_way']),
       getStoreHoursFromDB(),
       isStoreOpen(now),
       getNextOpenTime(now),
