@@ -18,6 +18,7 @@ export default function ProductsAdminClient() {
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [showCategoryManager, setShowCategoryManager] = useState(false)
+  const [showInactive, setShowInactive] = useState(true)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -52,6 +53,7 @@ export default function ProductsAdminClient() {
   }
 
   const filtered = products
+    .filter(p => showInactive || p.is_active)
     .filter(p => activeCategory === 'all' || p.category_id === activeCategory)
     .filter(p => {
       if (!search.trim()) return true
@@ -63,6 +65,7 @@ export default function ProductsAdminClient() {
 
   const lowStockCount = products.filter(p => p.stock_qty <= p.low_stock_threshold && p.is_active).length
   const outOfStockCount = products.filter(p => p.stock_qty === 0 && p.is_active).length
+  const inactiveCount = products.filter(p => !p.is_active).length
 
   return (
     <div className="space-y-5">
@@ -74,6 +77,18 @@ export default function ProductsAdminClient() {
             {products.length} products
             {lowStockCount > 0 && <span className="text-orange-600 dark:text-orange-400"> · {lowStockCount} low stock</span>}
             {outOfStockCount > 0 && <span className="text-red-600 dark:text-red-400"> · {outOfStockCount} out</span>}
+            {inactiveCount > 0 && (
+              <>
+                <span> · </span>
+                <button
+                  onClick={() => setShowInactive(s => !s)}
+                  className="text-amber-700 dark:text-amber-400 hover:underline"
+                  title={showInactive ? 'Hide inactive products' : 'Show inactive products'}
+                >
+                  {inactiveCount} inactive {showInactive ? '(shown)' : '(hidden)'}
+                </button>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -192,7 +207,7 @@ function ProductRow({
   const isOut = product.stock_qty === 0
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden">
+    <div className={`bg-white dark:bg-gray-800 rounded-2xl shadow-sm overflow-hidden ${!product.is_active ? 'opacity-60' : ''}`}>
       {/* Main row */}
       <div className="flex items-center gap-3 p-3">
         <button onClick={onToggle} className="shrink-0 w-14 h-14 bg-gray-100 dark:bg-gray-700 rounded-xl overflow-hidden flex items-center justify-center">
@@ -204,7 +219,14 @@ function ProductRow({
           )}
         </button>
         <button onClick={onToggle} className="flex-1 min-w-0 text-left">
-          <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{product.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">{product.name}</p>
+            {!product.is_active && (
+              <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-bold uppercase tracking-wide">
+                Inactive
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-500 dark:text-gray-400">
             {product.brand && <span>{product.brand}</span>}
             {product.brand && product.size && <span>·</span>}
@@ -548,6 +570,22 @@ function ProductFormModal({
     onCreated()
   }
 
+  const setActive = async (active: boolean) => {
+    if (!product) return
+    setError('')
+    const r = await fetch(`/api/products/${product.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: active }),
+    })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setError(json.error ?? `Failed to ${active ? 'activate' : 'deactivate'}`)
+      return
+    }
+    onCreated()
+  }
+
   return (
     <>
     <Dialog
@@ -667,6 +705,15 @@ function ProductFormModal({
               title="Hide from catalogue (keeps history)"
             >
               Deactivate
+            </button>
+          )}
+          {isEdit && !product.is_active && (
+            <button
+              onClick={() => setActive(true)}
+              className="px-3 py-2.5 text-green-700 dark:text-green-400 rounded-xl font-semibold hover:bg-green-50 dark:hover:bg-green-950/30"
+              title="Show the product back in the catalogue"
+            >
+              ✅ Activate
             </button>
           )}
           <button onClick={onClose} className="flex-1 py-2.5 text-gray-600 dark:text-gray-400 rounded-xl font-semibold">Cancel</button>
