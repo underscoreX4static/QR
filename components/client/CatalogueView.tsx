@@ -161,14 +161,14 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
           </div>
         </div>
 
-        {/* Category tabs */}
-        <div className="flex overflow-x-auto gap-1.5 px-3 pb-2 scrollbar-hide">
+        {/* Category tabs — primary navigation, bigger + bolder than brand pills */}
+        <div className="flex overflow-x-auto gap-2 px-3 pb-2.5 scrollbar-hide">
           <button
             onClick={() => setActiveCategory('all')}
-            className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+            className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
               activeCategory === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600'
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                : 'bg-gray-100 text-gray-700 active:scale-95'
             }`}
           >
             All
@@ -177,10 +177,10 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
                 activeCategory === cat.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600'
+                  ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                  : 'bg-gray-100 text-gray-700 active:scale-95'
               }`}
             >
               {cat.name}
@@ -188,35 +188,36 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
           ))}
         </div>
 
-        {/* Sort + Brand filters */}
-        <div className="flex gap-2 px-3 pb-2.5 overflow-x-auto scrollbar-hide">
+        {/* Sort + Brand filters — secondary, smaller, lighter */}
+        <div className="flex items-center gap-1.5 px-3 pb-2.5 overflow-x-auto scrollbar-hide">
           {/* Sort select */}
           <div className="relative flex-shrink-0">
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortOption)}
-              className={`appearance-none text-xs font-semibold rounded-full px-3.5 py-1.5 pr-7 border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+              className={`appearance-none text-[11px] font-medium rounded-full px-3 py-1 pr-6 border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                 sort !== 'default'
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-gray-100 border-transparent text-gray-600'
+                  : 'bg-gray-50 border-gray-200 text-gray-500'
               }`}
             >
               {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
                 <option key={key} value={key}>{SORT_LABELS[key]}</option>
               ))}
             </select>
-            <span className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px]">▼</span>
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-[9px]">▼</span>
           </div>
 
           {/* Brand pills */}
           {brands.length > 0 && (
             <>
+              <span className="flex-shrink-0 w-px h-4 bg-gray-200 mx-0.5" />
               <button
                 onClick={() => setActiveBrand('all')}
-                className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${
                   activeBrand === 'all'
                     ? 'bg-gray-800 text-white'
-                    : 'bg-gray-100 text-gray-600'
+                    : 'bg-gray-50 text-gray-500 border border-gray-200'
                 }`}
               >
                 All brands
@@ -225,10 +226,10 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 <button
                   key={brand}
                   onClick={() => setActiveBrand(activeBrand === brand ? 'all' : brand)}
-                  className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${
                     activeBrand === brand
                       ? 'bg-gray-800 text-white'
-                      : 'bg-gray-100 text-gray-600'
+                      : 'bg-gray-50 text-gray-500 border border-gray-200'
                   }`}
                 >
                   {brand}
