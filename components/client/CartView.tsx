@@ -42,8 +42,29 @@ function StepIndicator({ current }: { current: Step }) {
   )
 }
 
+interface PreviewLine {
+  product_id: string
+  batch_id: string
+  quantity: number
+  unit_price_sell: number
+  unit_price_cost: number
+  line_total: number
+}
+
+interface CartPreview {
+  subtotal: number
+  deliveryFee: number
+  discount: number
+  total: number
+  perProduct: Record<string, { quantity: number; total: number }>
+  lines: PreviewLine[]
+}
+
 export default function CartView({ cart, onCartChange, onBack, onOrder, isLoading }: Props) {
-  const subtotal = cartTotal(cart)
+  // Optimistic subtotal (single-batch price × qty) — instantly visible.
+  // Replaced by the FIFO-accurate preview once /api/cart/preview responds.
+  const optimisticSubtotal = cartTotal(cart)
+  const [preview, setPreview] = useState<CartPreview | null>(null)
   const [step, setStep] = useState<Step>('cart')
 
   // Address fields
@@ -65,13 +86,37 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
   // Cash confirmation
   const [cashConfirmed, setCashConfirmed] = useState(false)
 
-  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE
-  const discount = calculateDiscount(subtotal)
-  const total = subtotal - discount + deliveryFee
+  // Prefer the server-computed preview (FIFO-accurate). Fall back to the
+  // optimistic cart total while the preview request is in flight.
+  const subtotal = preview?.subtotal ?? optimisticSubtotal
+  const deliveryFee = preview?.deliveryFee ?? (subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : DELIVERY_FEE)
+  const discount = preview?.discount ?? calculateDiscount(subtotal)
+  const total = preview?.total ?? (subtotal - discount + deliveryFee)
   const isFreeDelivery = deliveryFee === 0
   const hasDiscount = discount > 0
   const remainingForFree = FREE_DELIVERY_THRESHOLD - subtotal
   const remainingForDiscount = DISCOUNT_THRESHOLD - subtotal
+
+  // Re-fetch FIFO preview whenever the cart contents change
+  useEffect(() => {
+    if (cart.items.length === 0) { setPreview(null); return }
+    let cancelled = false
+    fetch(`/api/cart/preview?t=${Date.now()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+      body: JSON.stringify({
+        items: cart.items.map((i) => ({ product_id: i.productId, quantity: i.quantity })),
+      }),
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled || json.error) return
+        setPreview(json)
+      })
+      .catch(() => { /* fall back to optimistic */ })
+    return () => { cancelled = true }
+  }, [cart])
 
   const fetchSlots = () => {
     // Cache-bust the URL and tell fetch to skip browser/WebView cache.
@@ -197,7 +242,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                           >+</button>
                         </div>
                         <span className="w-16 text-right text-sm font-semibold text-gray-900">
-                          ${(item.priceSell * item.quantity).toFixed(2)}
+                          ${(preview?.perProduct[item.productId]?.total ?? item.priceSell * item.quantity).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -560,7 +605,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
               {cart.items.map((item) => (
                 <div key={item.productId} className="flex justify-between px-4 py-2.5 text-sm border-b border-gray-50">
                   <span className="text-gray-700">{item.quantity}× {item.productName} <span className="text-gray-400">{item.size}</span></span>
-                  <span className="font-medium">${(item.priceSell * item.quantity).toFixed(2)}</span>
+                  <span className="font-medium">${(preview?.perProduct[item.productId]?.total ?? item.priceSell * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
               <div className="px-4 py-2.5 space-y-1">
