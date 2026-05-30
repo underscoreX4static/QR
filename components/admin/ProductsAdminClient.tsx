@@ -500,7 +500,7 @@ function ProductFormModal({
 
   const save = async () => {
     if (!name.trim()) { setError('Name required'); return }
-    if (!categoryId) { setError('Category required'); return }
+    if (!categoryId) { setError('Category required — create one first via 📁 Categories'); return }
     setSaving(true)
     setError('')
     const payload = {
@@ -514,15 +514,25 @@ function ProductFormModal({
       barcode: barcode.trim() || null,
       image_url: imageUrl || null,
     }
-    const res = await fetch(isEdit ? `/api/products/${product.id}` : '/api/products', {
-      method: isEdit ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const json = await res.json().catch(() => ({}))
-    setSaving(false)
-    if (!res.ok) { setError(json.error ?? 'Failed to save'); return }
-    onCreated()
+    try {
+      const res = await fetch(isEdit ? `/api/products/${product.id}` : '/api/products', {
+        method: isEdit ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => ({}))
+      setSaving(false)
+      if (!res.ok) {
+        console.error('[product save] error', res.status, json)
+        setError(json.error ?? `Failed to save (HTTP ${res.status})`)
+        return
+      }
+      onCreated()
+    } catch (err) {
+      setSaving(false)
+      console.error('[product save] network error', err)
+      setError('Network error — check your connection')
+    }
   }
 
   const doDelete = async (mode: 'soft' | 'hard') => {
@@ -609,9 +619,16 @@ function ProductFormModal({
           </div>
           <label className="block">
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Category *</span>
-            <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            {categories.length === 0 ? (
+              <p className="mt-1 text-sm text-amber-700 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-300 rounded-xl px-3 py-2.5">
+                No category yet. Close this and click <strong>📁 Categories</strong> to create one first.
+              </p>
+            ) : (
+              <select value={categoryId} onChange={e => setCategoryId(e.target.value)} className="w-full mt-1 px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800">
+                {!categoryId && <option value="">— Select a category —</option>}
+                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
           </label>
           <label className="block">
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Subcategory</span>
