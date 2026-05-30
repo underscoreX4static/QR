@@ -38,6 +38,21 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
     [catalogue]
   )
 
+  // Categories that actually have at least one product — empty ones
+  // would be a dead end for the customer.
+  const visibleCategories = useMemo(
+    () => catalogue.filter((cat) => cat.products.length > 0),
+    [catalogue]
+  )
+
+  // If the active category becomes empty (last product removed/deactivated),
+  // fall back to "all" so the grid is not stuck on an empty selection.
+  useEffect(() => {
+    if (activeCategory !== 'all' && !visibleCategories.some((c) => c.id === activeCategory)) {
+      setActiveCategory('all')
+    }
+  }, [activeCategory, visibleCategories])
+
   // Unique brands — scoped to the active category so the pills only show
   // brands that actually exist within the current selection.
   const brands = useMemo(() => {
@@ -151,7 +166,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
           >
             All
           </button>
-          {catalogue.map((cat) => (
+          {visibleCategories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
