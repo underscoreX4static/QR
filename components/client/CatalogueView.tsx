@@ -7,6 +7,8 @@ import { addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } from 
 import ProductCard from './ProductCard'
 import ProductDetailModal from './ProductDetailModal'
 import StoreStatusBanner from './StoreStatusBanner'
+import AddedToCartToast from './AddedToCartToast'
+import { hapticImpact, hapticSelection } from '@/lib/haptics'
 
 interface CatalogueCategory extends Category { products: Product[] }
 
@@ -33,6 +35,31 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
   const [activeBrand, setActiveBrand] = useState<string>('all')
   const [openProduct, setOpenProduct] = useState<Product | null>(null)
   const gridRef = useRef<HTMLDivElement>(null)
+
+  // Toast + cart-bar bump animation triggered every time the user adds an item
+  const [addCount, setAddCount] = useState(0)
+  const [lastAdded, setLastAdded] = useState<string | null>(null)
+  const [bumpCart, setBumpCart] = useState(false)
+
+  const handleAdd = (p: Product) => {
+    onCartChange(addToCart(cart, p))
+    hapticImpact('light')
+    setLastAdded(p.name)
+    setAddCount((n) => n + 1)
+    setBumpCart(true)
+    setTimeout(() => setBumpCart(false), 250)
+  }
+
+  const handleRemove = (p: Product) => {
+    const item = cart.items.find((i) => i.productId === p.id)
+    if (!item) return
+    hapticSelection()
+    if (item.quantity <= 1) {
+      onCartChange(removeFromCart(cart, p.id))
+    } else {
+      onCartChange(updateQuantity(cart, p.id, item.quantity - 1))
+    }
+  }
 
   // Flatten all products across categories
   const allProducts = useMemo(() =>
@@ -245,7 +272,12 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
       </div>
 
       {/* ── Product grid ── */}
-      <div ref={gridRef} className="flex-1 overflow-y-auto px-3 py-3 pb-28">
+      <div
+        ref={gridRef}
+        // Bottom padding matches the floating cart bar so the last row of
+        // products (and their +/− buttons) stays reachable above it.
+        className={`flex-1 overflow-y-auto px-3 py-3 ${count > 0 ? 'pb-32' : 'pb-6'}`}
+      >
 
         {/* Results count + clear */}
         <div className="flex items-center justify-between mb-3">
@@ -279,16 +311,8 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 key={product.id}
                 product={product}
                 cart={cart}
-                onAdd={(p) => onCartChange(addToCart(cart, p))}
-                onRemove={(p) => {
-                  const item = cart.items.find((i) => i.productId === p.id)
-                  if (!item) return
-                  if (item.quantity <= 1) {
-                    onCartChange(removeFromCart(cart, p.id))
-                  } else {
-                    onCartChange(updateQuantity(cart, p.id, item.quantity - 1))
-                  }
-                }}
+                onAdd={handleAdd}
+                onRemove={handleRemove}
                 onOpen={(p) => setOpenProduct(p)}
               />
             ))}
@@ -296,15 +320,18 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
         )}
       </div>
 
-      {/* ── Cart bar ── kept above the product-detail modal so the user can
-            always jump to checkout while browsing details */}
+      {/* ── Cart bar — sticky above the product-detail modal ─────────── */}
       {count > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 pb-6 z-[60]">
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 pb-6 z-[60] pointer-events-none">
           <button
             onClick={onCheckout}
-            className="w-full bg-blue-600 text-white rounded-2xl py-4 flex items-center justify-between px-5 shadow-lg active:scale-95 transition-transform"
+            className={`pointer-events-auto w-full bg-blue-600 text-white rounded-2xl py-4 flex items-center justify-between px-5 shadow-lg active:scale-95 transition-transform ${
+              bumpCart ? 'scale-[1.04] shadow-blue-600/40' : ''
+            }`}
           >
-            <span className="bg-blue-500 rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">
+            <span className={`bg-blue-500 rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold transition-transform ${
+              bumpCart ? 'scale-125' : ''
+            }`}>
               {count}
             </span>
             <span className="font-semibold text-base">View my cart</span>
@@ -312,6 +339,9 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
           </button>
         </div>
       )}
+
+      {/* ── Added-to-cart toast ────────────────────────────────────── */}
+      <AddedToCartToast trigger={addCount} productName={lastAdded} />
 
       {/* ── Product detail modal ── */}
       {openProduct && (() => {
@@ -324,16 +354,8 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
             product={fresh}
             cart={cart}
             onClose={() => setOpenProduct(null)}
-            onAdd={(p) => onCartChange(addToCart(cart, p))}
-            onRemove={(p) => {
-              const item = cart.items.find((i) => i.productId === p.id)
-              if (!item) return
-              if (item.quantity <= 1) {
-                onCartChange(removeFromCart(cart, p.id))
-              } else {
-                onCartChange(updateQuantity(cart, p.id, item.quantity - 1))
-              }
-            }}
+            onAdd={handleAdd}
+            onRemove={handleRemove}
           />
         )
       })()}
