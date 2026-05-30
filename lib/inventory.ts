@@ -63,6 +63,9 @@ export async function planConsumption(
 
 /**
  * Actually decrement the batches in DB. Call after a successful order insert.
+ * Also refreshes the parent product's displayed price to the new FIFO-active
+ * batch (so the catalogue shows the next cargaison's price the moment the
+ * previous one runs out).
  * Returns true on success.
  */
 export async function commitConsumption(lines: ConsumedLine[]): Promise<boolean> {
@@ -83,7 +86,54 @@ export async function commitConsumption(lines: ConsumedLine[]): Promise<boolean>
       .eq('id', l.batch_id)
     if (error) return false
   }
+
+  // Refresh prices on every distinct product touched
+  const productIds = Array.from(new Set(lines.map((l) => l.product_id)))
+  for (const pid of productIds) {
+    await refreshProductPriceFromActiveBatch(pid)
+  }
   return true
+}
+
+/**
+ * Set products.price_sell + price_cost to the oldest non-empty batch (FIFO
+ * active). Falls back to last-known batch if no stock left, so the displayed
+ * price doesn't suddenly become $0 when stock hits zero.
+ */
+export async function refreshProductPriceFromActiveBatch(productId: string): Promise<void> {
+  // Prefer the oldest active batch (FIFO head)
+  const { data: active } = await supabaseAdmin
+    .from('product_batches')
+    .select('price_sell,price_cost')
+    .eq('product_id', productId)
+    .gt('quantity_remaining', 0)
+    .order('received_at', { ascending: true })
+    .limit(1)
+    .maybeSingle<{ price_sell: number; price_cost: number }>()
+
+  if (active) {
+    await supabaseAdmin
+      .from('products')
+      .update({ price_sell: active.price_sell, price_cost: active.price_cost })
+      .eq('id', productId)
+    return
+  }
+
+  // Out of stock: keep the most recent batch's price as a "last known" reference
+  const { data: latest } = await supabaseAdmin
+    .from('product_batches')
+    .select('price_sell,price_cost')
+    .eq('product_id', productId)
+    .order('received_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ price_sell: number; price_cost: number }>()
+
+  if (latest) {
+    await supabaseAdmin
+      .from('products')
+      .update({ price_sell: latest.price_sell, price_cost: latest.price_cost })
+      .eq('id', productId)
+  }
 }
 
 /**
@@ -94,10 +144,11 @@ export async function commitConsumption(lines: ConsumedLine[]): Promise<boolean>
 export async function refundConsumption(orderId: string): Promise<boolean> {
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('batch_id,quantity')
+    .select('product_id,batch_id,quantity')
     .eq('order_id', orderId)
-    .returns<{ batch_id: string | null; quantity: number }[]>()
+    .returns<{ product_id: string; batch_id: string | null; quantity: number }[]>()
 
+  const touchedProducts = new Set<string>()
   for (const item of items ?? []) {
     if (!item.batch_id) continue
     const { data: batch } = await supabaseAdmin
@@ -110,6 +161,12 @@ export async function refundConsumption(orderId: string): Promise<boolean> {
       .from('product_batches')
       .update({ quantity_remaining: batch.quantity_remaining + item.quantity })
       .eq('id', item.batch_id)
+    touchedProducts.add(item.product_id)
+  }
+
+  // Refresh displayed price on every product whose stock came back
+  for (const pid of Array.from(touchedProducts)) {
+    await refreshProductPriceFromActiveBatch(pid)
   }
   return true
 }

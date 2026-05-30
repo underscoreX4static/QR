@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase'
+import { refreshProductPriceFromActiveBatch } from '@/lib/inventory'
 import type { ProductBatch } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // The DB trigger automatically recalculates products.stock_qty.
   // Mirror the FIFO sell price on the product so the catalogue shows
   // the current sell price (= oldest active batch's price).
-  await refreshActiveSellPrice(params.id)
+  await refreshProductPriceFromActiveBatch(params.id)
 
   return NextResponse.json({ batch: data }, { status: 201 })
 }
@@ -104,7 +105,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Failed to update batch' }, { status: 500 })
   }
 
-  await refreshActiveSellPrice(params.id)
+  await refreshProductPriceFromActiveBatch(params.id)
   return NextResponse.json({ ok: true })
 }
 
@@ -124,25 +125,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Failed to delete batch' }, { status: 500 })
   }
 
-  await refreshActiveSellPrice(params.id)
+  await refreshProductPriceFromActiveBatch(params.id)
   return NextResponse.json({ ok: true })
-}
-
-// Helper: set products.price_sell + price_cost to the active FIFO batch
-async function refreshActiveSellPrice(productId: string) {
-  const { data: batch } = await supabaseAdmin
-    .from('product_batches')
-    .select('price_sell,price_cost')
-    .eq('product_id', productId)
-    .gt('quantity_remaining', 0)
-    .order('received_at', { ascending: true })
-    .limit(1)
-    .single<{ price_sell: number; price_cost: number }>()
-
-  if (batch) {
-    await supabaseAdmin
-      .from('products')
-      .update({ price_sell: batch.price_sell, price_cost: batch.price_cost })
-      .eq('id', productId)
-  }
 }
