@@ -29,12 +29,6 @@ interface Summary {
   errors:               { row: number; message: string }[]
 }
 
-const HEADER = [
-  'category_name', 'name', 'brand', 'size', 'subcategory', 'description', 'barcode',
-  'low_stock_threshold', 'batch_quantity', 'batch_price_cost', 'batch_price_sell',
-  'batch_supplier', 'image_url',
-]
-
 const SAMPLE_CSV = `category_name,name,brand,size,subcategory,description,barcode,low_stock_threshold,batch_quantity,batch_price_cost,batch_price_sell,batch_supplier,image_url
 Spirits,Jack Daniel's,Jack Daniel's,700ml,Whisky,Tennessee whiskey 40%,5099873003343,5,12,28.50,45.00,ABC Wholesale,
 Beer,Heineken 6-pack,Heineken,6×330ml,Lager,,,5,24,12.00,22.00,XYZ Distrib,
