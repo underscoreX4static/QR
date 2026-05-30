@@ -9,6 +9,7 @@ import Dialog from '@/components/ui/Dialog'
 import type { Order } from '@/types'
 import type { Cart } from '@/lib/cart'
 import { cartCount } from '@/lib/cart'
+import { loadCheckoutState, saveCheckoutState, clearCheckoutState } from '@/lib/checkout-persistence'
 
 type View = 'loading' | 'error' | 'catalogue' | 'cart' | 'confirmation'
 
@@ -53,6 +54,32 @@ function OrderApp() {
   const [isOrdering, setIsOrdering] = useState(false)
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null)
   const [alertMsg, setAlertMsg] = useState('')
+
+  // Restore the cart from localStorage on mount so the customer can leave
+  // and come back without losing their selection.
+  useEffect(() => {
+    if (!qrSlug) return
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+    const telegramId = tgUser?.id ? String(tgUser.id) : null
+    const saved = loadCheckoutState(telegramId, qrSlug)
+    if (saved?.cart?.items?.length) {
+      setCart({ ...saved.cart, qrSlug })
+    }
+  }, [qrSlug])
+
+  // Persist cart on every change (debounced via React batching anyway)
+  useEffect(() => {
+    if (!qrSlug || cart.items.length === 0) return
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+    const telegramId = tgUser?.id ? String(tgUser.id) : null
+    const existing = loadCheckoutState(telegramId, qrSlug)
+    saveCheckoutState(telegramId, qrSlug, {
+      cart,
+      address:  existing?.address  ?? { street: '', suburbName: null, suburbPostcode: null, notes: '', addressConfirmed: false },
+      schedule: existing?.schedule ?? { deliveryType: 'asap', selectedSlotValue: null },
+      cashConfirmed: existing?.cashConfirmed ?? false,
+    })
+  }, [cart, qrSlug])
 
   // Fetch catalogue + QR validation
   useEffect(() => {
@@ -159,6 +186,8 @@ function OrderApp() {
 
       setConfirmedOrder(json.order)
       setCart({ items: [], qrSlug })
+      // Clear the saved checkout — order is done, fresh slate next time
+      clearCheckoutState(String(tgUser.id), qrSlug)
       setView('confirmation')
     } catch {
       setAlertMsg('Connection error. Please try again.')
@@ -210,6 +239,9 @@ function OrderApp() {
   }
 
   if (view === 'cart') {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+    const telegramId = tgUser?.id ? String(tgUser.id) : null
+    const saved = loadCheckoutState(telegramId, qrSlug)
     return (
       <>
         {alertDialog}
@@ -219,6 +251,17 @@ function OrderApp() {
           onBack={() => setView('catalogue')}
           onOrder={handleOrder}
           isLoading={isOrdering}
+          initialAddress={saved?.address}
+          initialSchedule={saved?.schedule}
+          initialCashConfirmed={saved?.cashConfirmed}
+          onFormChange={(formState) => {
+            saveCheckoutState(telegramId, qrSlug, {
+              cart,
+              address: formState.address,
+              schedule: formState.schedule,
+              cashConfirmed: formState.cashConfirmed,
+            })
+          }}
         />
       </>
     )

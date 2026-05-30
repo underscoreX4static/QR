@@ -21,6 +21,31 @@ interface Props {
   onBack: () => void
   onOrder: (address: string, notes: string, scheduledAt?: string) => void
   isLoading: boolean
+  /** Restore previously-entered form values (called once on mount) */
+  initialAddress?: {
+    street: string
+    suburbName: string | null
+    suburbPostcode: string | null
+    notes: string
+    addressConfirmed: boolean
+  }
+  initialSchedule?: {
+    deliveryType: 'asap' | 'scheduled'
+    selectedSlotValue: string | null
+  }
+  initialCashConfirmed?: boolean
+  /** Fired whenever any form value changes, so the parent can persist it. */
+  onFormChange?: (state: {
+    address: {
+      street: string
+      suburbName: string | null
+      suburbPostcode: string | null
+      notes: string
+      addressConfirmed: boolean
+    }
+    schedule: { deliveryType: 'asap' | 'scheduled'; selectedSlotValue: string | null }
+    cashConfirmed: boolean
+  }) => void
 }
 
 function StepIndicator({ current }: { current: Step }) {
@@ -60,31 +85,38 @@ interface CartPreview {
   lines: PreviewLine[]
 }
 
-export default function CartView({ cart, onCartChange, onBack, onOrder, isLoading }: Props) {
+export default function CartView({
+  cart, onCartChange, onBack, onOrder, isLoading,
+  initialAddress, initialSchedule, initialCashConfirmed, onFormChange,
+}: Props) {
   // Optimistic subtotal (single-batch price × qty) — instantly visible.
   // Replaced by the FIFO-accurate preview once /api/cart/preview responds.
   const optimisticSubtotal = cartTotal(cart)
   const [preview, setPreview] = useState<CartPreview | null>(null)
   const [step, setStep] = useState<Step>('cart')
 
-  // Address fields
-  const [street, setStreet] = useState('')
+  // Address fields — preseed from saved checkout state if any
+  const [street, setStreet] = useState(initialAddress?.street ?? '')
   const [suburbInput, setSuburbInput] = useState('')
-  const [selectedSuburb, setSelectedSuburb] = useState<{ suburb: string; postcode: string } | null>(null)
-  const [notes, setNotes] = useState('')
+  const [selectedSuburb, setSelectedSuburb] = useState<{ suburb: string; postcode: string } | null>(
+    initialAddress?.suburbName && initialAddress?.suburbPostcode
+      ? { suburb: initialAddress.suburbName, postcode: initialAddress.suburbPostcode }
+      : null
+  )
+  const [notes, setNotes] = useState(initialAddress?.notes ?? '')
   const [suburbSuggestions, setSuburbSuggestions] = useState<typeof BRISBANE_SUBURBS>([])
-  const [addressConfirmed, setAddressConfirmed] = useState(false)
+  const [addressConfirmed, setAddressConfirmed] = useState(initialAddress?.addressConfirmed ?? false)
   const [streetTouched, setStreetTouched] = useState(false)
 
   // Schedule
-  const [deliveryType, setDeliveryType] = useState<'asap' | 'scheduled'>('asap')
+  const [deliveryType, setDeliveryType] = useState<'asap' | 'scheduled'>(initialSchedule?.deliveryType ?? 'asap')
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [slots, setSlots] = useState<Slot[]>([])
   const [storeOpen, setStoreOpen] = useState(true)
   const [nextOpen, setNextOpen] = useState('')
 
   // Cash confirmation
-  const [cashConfirmed, setCashConfirmed] = useState(false)
+  const [cashConfirmed, setCashConfirmed] = useState(initialCashConfirmed ?? false)
 
   // Prefer the server-computed preview (FIFO-accurate). Fall back to the
   // optimistic cart total while the preview request is in flight.
@@ -127,13 +159,46 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
         if (json.error) console.error('[slots]', json.error)
         setStoreOpen(json.open ?? true)
         setNextOpen(json.nextOpen ?? '')
-        setSlots(json.slots ?? [])
+        const fresh = (json.slots ?? []) as Slot[]
+        setSlots(fresh)
         if (!json.open) setDeliveryType('scheduled')
+
+        // Re-resolve a previously selected slot (saved as ISO string) against
+        // the fresh list. Drop it silently if it no longer exists or is taken.
+        const savedValue = initialSchedule?.selectedSlotValue ?? null
+        if (savedValue) {
+          setSelectedSlot((prev) => {
+            if (prev) return prev // user already picked one in this session
+            const match = fresh.find((s) => s.value === savedValue && !s.taken)
+            return match ?? null
+          })
+        }
       })
       .catch((e) => console.error('[slots fetch]', e))
   }
 
   useEffect(() => { fetchSlots() }, [])
+
+  // Notify the parent of any form-state change so it can persist to storage.
+  // (Cart is persisted on the parent side already.)
+  useEffect(() => {
+    if (!onFormChange) return
+    onFormChange({
+      address: {
+        street,
+        suburbName:     selectedSuburb?.suburb ?? null,
+        suburbPostcode: selectedSuburb?.postcode ?? null,
+        notes,
+        addressConfirmed,
+      },
+      schedule: {
+        deliveryType,
+        selectedSlotValue: selectedSlot?.value ?? null,
+      },
+      cashConfirmed,
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [street, selectedSuburb, notes, addressConfirmed, deliveryType, selectedSlot, cashConfirmed])
 
   // Live updates on the schedule step:
   //  • initial fetch when entering the step
