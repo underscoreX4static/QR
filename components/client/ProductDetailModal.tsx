@@ -29,12 +29,14 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
     <div
       className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
       onClick={onClose}
-      // Sit the modal above the cart bar — the bottom inset matches the
-      // cart bar height (~88px) when it is visible.
-      style={cartHasItems ? { paddingBottom: '88px' } : undefined}
     >
       <div
-        className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl animate-[slideUp_0.25s_ease-out]"
+        // The modal stays glued to the bottom (parent uses items-end). When the
+        // cart bar is visible, simply make the card shorter so the bar still
+        // fits — no transparent gap, no upward shift.
+        className={`bg-white w-full max-w-md rounded-t-3xl overflow-hidden flex flex-col shadow-2xl animate-[slideUp_0.25s_ease-out] ${
+          cartHasItems ? 'max-h-[calc(92vh-88px)]' : 'max-h-[92vh]'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top grab handle */}
