@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { Category, Product, ProductBatch } from '@/types'
+import Dialog from '@/components/ui/Dialog'
 
 interface ProductWithBatches extends Product {
   batches?: ProductBatch[]
@@ -16,6 +17,7 @@ export default function ProductsAdminClient() {
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [showCreate, setShowCreate] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
+  const [showCategoryManager, setShowCategoryManager] = useState(false)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -74,12 +76,20 @@ export default function ProductsAdminClient() {
             {outOfStockCount > 0 && <span className="text-red-600 dark:text-red-400"> · {outOfStockCount} out</span>}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
-        >
-          + Add product
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCategoryManager(true)}
+            className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          >
+            📁 Categories
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            + Add product
+          </button>
+        </div>
       </div>
 
       {/* Search + category filter */}
@@ -153,6 +163,12 @@ export default function ProductsAdminClient() {
           product={editing}
           onClose={() => setEditing(null)}
           onCreated={() => { setEditing(null); loadAll() }}
+        />
+      )}
+      {showCategoryManager && (
+        <CategoryManagerModal
+          onClose={() => setShowCategoryManager(false)}
+          onChange={loadAll}
         />
       )}
     </div>
@@ -259,6 +275,7 @@ function BatchRow({ batch, index, onChange }: { batch: ProductBatch; index: numb
   const [cost, setCost] = useState(Number(batch.price_cost))
   const [sell, setSell] = useState(Number(batch.price_sell))
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const save = async () => {
     setSaving(true)
@@ -273,7 +290,7 @@ function BatchRow({ batch, index, onChange }: { batch: ProductBatch; index: numb
   }
 
   const remove = async () => {
-    if (!confirm('Delete this batch? Stock will be removed.')) return
+    setConfirmDelete(false)
     await fetch(`/api/products/${batch.product_id}/batches?batch_id=${batch.id}`, { method: 'DELETE' })
     onChange()
   }
@@ -283,6 +300,17 @@ function BatchRow({ batch, index, onChange }: { batch: ProductBatch; index: numb
   const isEmpty = batch.quantity_remaining === 0
 
   return (
+    <>
+    <Dialog
+      open={confirmDelete}
+      title="Delete batch?"
+      message={`This will remove ${batch.quantity_remaining} unit(s) from stock. Order history won't be affected.`}
+      variant="confirm"
+      confirmLabel="Delete batch"
+      confirmClass="bg-red-600 hover:bg-red-700 text-white"
+      onConfirm={remove}
+      onCancel={() => setConfirmDelete(false)}
+    />
     <div className={`p-2.5 rounded-xl border ${
       isActive ? 'border-green-300 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20'
       : isEmpty ? 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/40 opacity-60'
@@ -302,7 +330,7 @@ function BatchRow({ batch, index, onChange }: { batch: ProductBatch; index: numb
           {batch.supplier && <span className="text-xs text-gray-400 truncate">({batch.supplier})</span>}
           <div className="ml-auto flex gap-1">
             <button onClick={() => setEditing(true)} className="text-xs px-2 py-1 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-md">Edit</button>
-            <button onClick={remove} className="text-xs px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md">Delete</button>
+            <button onClick={() => setConfirmDelete(true)} className="text-xs px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-md">Delete</button>
           </div>
         </div>
       ) : (
@@ -330,6 +358,7 @@ function BatchRow({ batch, index, onChange }: { batch: ProductBatch; index: numb
         </div>
       )}
     </div>
+    </>
   )
 }
 
@@ -455,6 +484,7 @@ function ProductFormModal({
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showDeleteOptions, setShowDeleteOptions] = useState(false)
 
   const onUpload = async (file: File) => {
     setUploading(true)
@@ -495,14 +525,32 @@ function ProductFormModal({
     onCreated()
   }
 
-  const deleteProduct = async () => {
+  const doDelete = async (mode: 'soft' | 'hard') => {
     if (!product) return
-    if (!confirm(`Hide "${product.name}" from the catalogue?`)) return
-    await fetch(`/api/products/${product.id}`, { method: 'DELETE' })
+    setError('')
+    const r = await fetch(`/api/products/${product.id}?mode=${mode}`, { method: 'DELETE' })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setError(json.error ?? 'Failed to delete')
+      // Keep the modal open so user can read the error
+      setShowDeleteOptions(false)
+      return
+    }
     onCreated()
   }
 
   return (
+    <>
+    <Dialog
+      open={showDeleteOptions}
+      title={`Delete "${product?.name}"?`}
+      message={'Choose how to remove this product:\n\n• Deactivate — hides it from the catalogue, keeps order history\n• Permanently delete — wipes the product and all its batches (only works if never ordered)'}
+      variant="confirm"
+      confirmLabel="Deactivate (recommended)"
+      confirmClass="bg-amber-600 hover:bg-amber-700 text-white"
+      onConfirm={() => { setShowDeleteOptions(false); doDelete('soft') }}
+      onCancel={() => setShowDeleteOptions(false)}
+    />
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
       <div className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl">
         <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
@@ -576,13 +624,284 @@ function ProductFormModal({
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
-        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-2">
+        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-2">
           {isEdit && (
-            <button onClick={deleteProduct} className="px-3 py-2.5 text-red-600 dark:text-red-400 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-950/30">Delete</button>
+            <button
+              onClick={() => doDelete('hard')}
+              className="px-3 py-2.5 text-red-600 dark:text-red-400 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-950/30"
+              title="Permanently delete (only works if never ordered)"
+            >
+              🗑️ Delete
+            </button>
+          )}
+          {isEdit && product.is_active && (
+            <button
+              onClick={() => doDelete('soft')}
+              className="px-3 py-2.5 text-amber-700 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/30"
+              title="Hide from catalogue (keeps history)"
+            >
+              Deactivate
+            </button>
           )}
           <button onClick={onClose} className="flex-1 py-2.5 text-gray-600 dark:text-gray-400 rounded-xl font-semibold">Cancel</button>
           <button onClick={save} disabled={saving || uploading} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-semibold disabled:opacity-50">
             {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create product'}
+          </button>
+        </div>
+      </div>
+    </div>
+    </>
+  )
+}
+
+// ─── Categories manager modal ────────────────────────────────────────────────
+
+interface CategoryWithCount extends Category {
+  productCount?: number
+}
+
+function CategoryManagerModal({ onClose, onChange }: { onClose: () => void; onChange: () => void }) {
+  const [cats, setCats] = useState<CategoryWithCount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [editingCat, setEditingCat] = useState<Category | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [deletingCat, setDeletingCat] = useState<CategoryWithCount | null>(null)
+  const [deleteError, setDeleteError] = useState('')
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const [catsRes, prodsRes] = await Promise.all([
+      fetch('/api/categories', { cache: 'no-store' }),
+      fetch('/api/admin/products-list', { cache: 'no-store' }),
+    ])
+    const cj = await catsRes.json()
+    const pj = await prodsRes.json()
+    const counts: Record<string, number> = {}
+    for (const p of (pj.products ?? []) as { category_id: string; is_active: boolean }[]) {
+      if (p.is_active) counts[p.category_id] = (counts[p.category_id] ?? 0) + 1
+    }
+    setCats((cj.categories ?? []).map((c: Category) => ({ ...c, productCount: counts[c.id] ?? 0 })))
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const toggleActive = async (cat: Category) => {
+    await fetch(`/api/categories/${cat.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !cat.is_active }),
+    })
+    load(); onChange()
+  }
+
+  const move = async (cat: Category, dir: -1 | 1) => {
+    const idx = cats.findIndex(c => c.id === cat.id)
+    const other = cats[idx + dir]
+    if (!other) return
+    await Promise.all([
+      fetch(`/api/categories/${cat.id}`,   { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort_order: other.sort_order }) }),
+      fetch(`/api/categories/${other.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort_order: cat.sort_order }) }),
+    ])
+    load()
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingCat) return
+    setDeleteError('')
+    const r = await fetch(`/api/categories/${deletingCat.id}`, { method: 'DELETE' })
+    const json = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      setDeleteError(json.error ?? 'Failed to delete')
+      return
+    }
+    setDeletingCat(null)
+    load(); onChange()
+  }
+
+  return (
+    <>
+    <Dialog
+      open={!!deletingCat}
+      title={`Delete "${deletingCat?.name}"?`}
+      message={deleteError || `This category is not used by any active product. The deletion is permanent.`}
+      variant="confirm"
+      confirmLabel="Delete"
+      confirmClass="bg-red-600 hover:bg-red-700 text-white"
+      onConfirm={confirmDelete}
+      onCancel={() => { setDeletingCat(null); setDeleteError('') }}
+    />
+    <div className="fixed inset-0 bg-black/50 z-40 flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
+          <div>
+            <h3 className="font-bold text-gray-900 dark:text-gray-100">Categories</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Organise your catalogue groups</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <button
+            onClick={() => setCreating(true)}
+            className="w-full py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+          >
+            + Add category
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {loading ? (
+            <div className="text-center py-8 text-gray-400">Loading…</div>
+          ) : cats.length === 0 ? (
+            <div className="text-center py-8 text-gray-400">No categories yet</div>
+          ) : (
+            cats.map((cat, i) => (
+              <div key={cat.id} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2.5 flex items-center gap-2">
+                <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
+                  {cat.image_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={cat.image_url} alt={cat.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg">📁</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{cat.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {cat.productCount ?? 0} product{cat.productCount === 1 ? '' : 's'}
+                    {!cat.is_active && <span className="text-amber-600 dark:text-amber-400"> · inactive</span>}
+                  </p>
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                  <button onClick={() => move(cat, -1)} disabled={i === 0} className="w-6 h-6 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30">▲</button>
+                  <button onClick={() => move(cat, 1)} disabled={i === cats.length - 1} className="w-6 h-6 rounded text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-30">▼</button>
+                  <button
+                    onClick={() => toggleActive(cat)}
+                    className={`text-[10px] px-2 py-1 rounded-md font-semibold ${
+                      cat.is_active
+                        ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300'
+                        : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
+                    }`}
+                  >
+                    {cat.is_active ? 'On' : 'Off'}
+                  </button>
+                  <button onClick={() => setEditingCat(cat)} className="text-[10px] px-2 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-md font-semibold">Edit</button>
+                  <button onClick={() => setDeletingCat(cat)} className="text-[10px] px-2 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-md font-semibold">Del</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+
+    {creating && (
+      <CategoryFormModal
+        onClose={() => setCreating(false)}
+        onSaved={() => { setCreating(false); load(); onChange() }}
+      />
+    )}
+    {editingCat && (
+      <CategoryFormModal
+        category={editingCat}
+        onClose={() => setEditingCat(null)}
+        onSaved={() => { setEditingCat(null); load(); onChange() }}
+      />
+    )}
+    </>
+  )
+}
+
+// ─── Category create/edit modal ──────────────────────────────────────────────
+
+function CategoryFormModal({
+  category, onClose, onSaved,
+}: {
+  category?: Category
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const isEdit = !!category
+  const [name, setName] = useState(category?.name ?? '')
+  const [imageUrl, setImageUrl] = useState(category?.image_url ?? '')
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const onUpload = async (file: File) => {
+    setUploading(true); setError('')
+    const fd = new FormData()
+    fd.append('file', file)
+    const r = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+    const json = await r.json().catch(() => ({}))
+    setUploading(false)
+    if (!r.ok) { setError(json.error ?? 'Upload failed'); return }
+    setImageUrl(json.url)
+  }
+
+  const save = async () => {
+    if (!name.trim()) { setError('Name required'); return }
+    setSaving(true); setError('')
+    const r = await fetch(isEdit ? `/api/categories/${category.id}` : '/api/categories', {
+      method: isEdit ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), image_url: imageUrl || null }),
+    })
+    const json = await r.json().catch(() => ({}))
+    setSaving(false)
+    if (!r.ok) { setError(json.error ?? 'Failed to save'); return }
+    onSaved()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-white dark:bg-gray-900 w-full max-w-sm rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">{isEdit ? 'Edit category' : 'New category'}</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Image (optional)</span>
+            <div className="mt-1 flex items-center gap-3">
+              <div className="w-14 h-14 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden flex items-center justify-center shrink-0">
+                {imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xl">📁</span>
+                )}
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <label className="block">
+                  <span className="cursor-pointer inline-block px-3 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-semibold">
+                    {uploading ? 'Uploading…' : imageUrl ? 'Replace' : 'Upload'}
+                  </span>
+                  <input type="file" accept="image/*" hidden onChange={e => e.target.files?.[0] && onUpload(e.target.files[0])} />
+                </label>
+                {imageUrl && (
+                  <button onClick={() => setImageUrl('')} className="block text-xs text-red-600 dark:text-red-400 hover:underline">Remove</button>
+                )}
+              </div>
+            </div>
+          </div>
+          <label className="block">
+            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Name *</span>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Spirits, Beer, Wine…"
+              className="w-full mt-1 px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800"
+              autoFocus
+            />
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex gap-2">
+          <button onClick={onClose} className="flex-1 py-2.5 text-gray-600 dark:text-gray-400 rounded-xl font-semibold">Cancel</button>
+          <button onClick={save} disabled={saving || uploading} className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl font-semibold disabled:opacity-50">
+            {saving ? 'Saving…' : isEdit ? 'Save changes' : 'Create category'}
           </button>
         </div>
       </div>

@@ -33,16 +33,42 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ product: data })
 }
 
-// DELETE /api/products/[id] — soft delete by setting is_active = false
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+// DELETE /api/products/[id]
+//   ?mode=soft  → set is_active = false (default)
+//   ?mode=hard  → hard delete + cascade batches; blocked if used in any order_items
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const mode = new URL(req.url).searchParams.get('mode') ?? 'soft'
+
+  if (mode === 'hard') {
+    // Block if the product has ever been used in an order — keep history intact
+    const { count } = await supabaseAdmin
+      .from('order_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', params.id)
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({
+        error: `Cannot hard-delete: this product appears in ${count} past order item(s). Use soft delete (deactivate) instead to preserve order history.`,
+      }, { status: 409 })
+    }
+
+    // Delete batches first (FK), then product
+    await supabaseAdmin.from('product_batches').delete().eq('product_id', params.id)
+    const { error } = await supabaseAdmin.from('products').delete().eq('id', params.id)
+    if (error) {
+      return NextResponse.json({ error: 'Failed to delete product: ' + error.message }, { status: 500 })
+    }
+    return NextResponse.json({ ok: true, deleted: 'hard' })
+  }
+
+  // Soft delete — keep row, just hide from catalogue
   const { error } = await supabaseAdmin
     .from('products')
     .update({ is_active: false })
     .eq('id', params.id)
 
   if (error) {
-    return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to deactivate product' }, { status: 500 })
   }
-
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, deleted: 'soft' })
 }
