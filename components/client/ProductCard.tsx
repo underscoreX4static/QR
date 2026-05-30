@@ -7,20 +7,19 @@ interface Props {
   product: Product
   cart: Cart
   onAdd: (product: Product) => void
+  onRemove: (product: Product) => void
   onOpen: (product: Product) => void
 }
 
-export default function ProductCard({ product, cart, onAdd, onOpen }: Props) {
+export default function ProductCard({ product, cart, onAdd, onRemove, onOpen }: Props) {
   const inStock = product.stock_qty > 0
   const inCart = cart.items.find((i) => i.productId === product.id)
   const qty = inCart?.quantity ?? 0
 
-  // The Add button is its own clickable target — stop the click from bubbling
-  // up so it doesn't also open the detail modal.
-  const stopAndAdd = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (inStock) onAdd(product)
-  }
+  // Inline qty controls — stop click propagation so we don't open the modal.
+  const stop = (e: React.MouseEvent | React.PointerEvent) => e.stopPropagation()
+  const add = (e: React.MouseEvent) => { e.stopPropagation(); if (inStock) onAdd(product) }
+  const remove = (e: React.MouseEvent) => { e.stopPropagation(); onRemove(product) }
 
   return (
     <button
@@ -43,7 +42,7 @@ export default function ProductCard({ product, cart, onAdd, onOpen }: Props) {
           </div>
         )}
         {qty > 0 && (
-          <span className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center shadow">
+          <span className="absolute top-2 right-2 bg-blue-600 text-white text-[11px] font-bold rounded-full min-w-[22px] h-[22px] px-1.5 flex items-center justify-center shadow">
             {qty}
           </span>
         )}
@@ -56,7 +55,7 @@ export default function ProductCard({ product, cart, onAdd, onOpen }: Props) {
         )}
       </div>
 
-      {/* Info + button */}
+      {/* Info + action */}
       <div className="p-3 flex flex-col gap-2 flex-1">
         <div className="flex-1">
           <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{product.name}</p>
@@ -70,18 +69,53 @@ export default function ProductCard({ product, cart, onAdd, onOpen }: Props) {
           <span className="font-bold text-gray-900 text-sm">
             ${Number(product.price_sell).toFixed(2)}
           </span>
-          <span
-            onClick={stopAndAdd}
-            className={`rounded-xl px-3 py-1.5 text-sm font-semibold transition-transform select-none ${
-              inStock
-                ? 'bg-blue-600 text-white active:scale-95 cursor-pointer'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-            }`}
-            role="button"
-            aria-disabled={!inStock}
-          >
-            {qty > 0 ? `+1` : `Add`}
-          </span>
+
+          {qty === 0 ? (
+            // Pristine state — single "Add" button
+            <span
+              onClick={add}
+              onPointerDown={stop}
+              className={`rounded-xl px-3.5 py-1.5 text-sm font-semibold transition-transform select-none ${
+                inStock
+                  ? 'bg-blue-600 text-white active:scale-95 cursor-pointer'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+              role="button"
+              aria-disabled={!inStock}
+            >
+              Add
+            </span>
+          ) : (
+            // In-cart state — compact − / qty / + stepper
+            <span
+              onClick={stop}
+              onPointerDown={stop}
+              className="inline-flex items-center gap-0 bg-blue-600 text-white rounded-xl overflow-hidden text-sm font-bold select-none"
+              role="group"
+              aria-label={`Quantity in cart: ${qty}`}
+            >
+              <span
+                onClick={remove}
+                role="button"
+                className="w-7 h-7 flex items-center justify-center active:bg-blue-700 cursor-pointer text-base leading-none"
+                aria-label="Decrease quantity"
+              >
+                −
+              </span>
+              <span className="min-w-[20px] text-center text-sm" aria-live="polite">{qty}</span>
+              <span
+                onClick={add}
+                role="button"
+                aria-disabled={qty >= product.stock_qty}
+                className={`w-7 h-7 flex items-center justify-center active:bg-blue-700 cursor-pointer text-base leading-none ${
+                  qty >= product.stock_qty ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                aria-label="Increase quantity"
+              >
+                +
+              </span>
+            </span>
+          )}
         </div>
       </div>
     </button>

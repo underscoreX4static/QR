@@ -268,6 +268,15 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 product={product}
                 cart={cart}
                 onAdd={(p) => onCartChange(addToCart(cart, p))}
+                onRemove={(p) => {
+                  const item = cart.items.find((i) => i.productId === p.id)
+                  if (!item) return
+                  if (item.quantity <= 1) {
+                    onCartChange(removeFromCart(cart, p.id))
+                  } else {
+                    onCartChange(updateQuantity(cart, p.id, item.quantity - 1))
+                  }
+                }}
                 onOpen={(p) => setOpenProduct(p)}
               />
             ))}
