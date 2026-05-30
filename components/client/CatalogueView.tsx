@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import type { Category, Product } from '@/types'
 import type { Cart } from '@/lib/cart'
 import { addToCart, cartCount, cartTotal } from '@/lib/cart'
@@ -36,12 +36,25 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
     [catalogue]
   )
 
-  // Collect unique brands
+  // Unique brands — scoped to the active category so the pills only show
+  // brands that actually exist within the current selection.
   const brands = useMemo(() => {
     const set = new Set<string>()
-    allProducts.forEach((p) => { if (p.brand) set.add(p.brand) })
+    const scope = activeCategory === 'all'
+      ? allProducts
+      : allProducts.filter((p) => p.category_id === activeCategory)
+    scope.forEach((p) => { if (p.brand) set.add(p.brand) })
     return Array.from(set).sort()
-  }, [allProducts])
+  }, [allProducts, activeCategory])
+
+  // If the user switches category and their currently selected brand no longer
+  // exists in the new category, drop the brand filter (otherwise the grid is
+  // empty for an invisible reason).
+  useEffect(() => {
+    if (activeBrand !== 'all' && !brands.includes(activeBrand)) {
+      setActiveBrand('all')
+    }
+  }, [activeBrand, brands])
 
   // Filter + sort
   const filtered = useMemo(() => {
