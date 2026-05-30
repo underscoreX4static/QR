@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Category, Product, ProductBatch } from '@/types'
 import Dialog from '@/components/ui/Dialog'
+import CatalogueImport from '@/components/admin/CatalogueImport'
 
 interface ProductWithBatches extends Product {
   batches?: ProductBatch[]
@@ -91,7 +92,8 @@ export default function ProductsAdminClient() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <CatalogueImport />
           <button
             onClick={() => setShowCategoryManager(true)}
             className="px-3 py-2 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
