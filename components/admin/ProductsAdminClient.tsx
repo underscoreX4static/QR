@@ -484,7 +484,7 @@ function ProductFormModal({
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [showDeleteOptions, setShowDeleteOptions] = useState(false)
+  const [confirmMode, setConfirmMode] = useState<'soft' | 'hard' | null>(null)
 
   const onUpload = async (file: File) => {
     setUploading(true)
@@ -528,12 +528,11 @@ function ProductFormModal({
   const doDelete = async (mode: 'soft' | 'hard') => {
     if (!product) return
     setError('')
+    setConfirmMode(null)
     const r = await fetch(`/api/products/${product.id}?mode=${mode}`, { method: 'DELETE' })
     const json = await r.json().catch(() => ({}))
     if (!r.ok) {
       setError(json.error ?? 'Failed to delete')
-      // Keep the modal open so user can read the error
-      setShowDeleteOptions(false)
       return
     }
     onCreated()
@@ -542,14 +541,24 @@ function ProductFormModal({
   return (
     <>
     <Dialog
-      open={showDeleteOptions}
-      title={`Delete "${product?.name}"?`}
-      message={'Choose how to remove this product:\n\n• Deactivate — hides it from the catalogue, keeps order history\n• Permanently delete — wipes the product and all its batches (only works if never ordered)'}
+      open={confirmMode === 'soft'}
+      title={`Deactivate "${product?.name}"?`}
+      message="The product will be hidden from the customer catalogue. Order history is preserved. You can reactivate it later."
       variant="confirm"
-      confirmLabel="Deactivate (recommended)"
+      confirmLabel="Deactivate"
       confirmClass="bg-amber-600 hover:bg-amber-700 text-white"
-      onConfirm={() => { setShowDeleteOptions(false); doDelete('soft') }}
-      onCancel={() => setShowDeleteOptions(false)}
+      onConfirm={() => doDelete('soft')}
+      onCancel={() => setConfirmMode(null)}
+    />
+    <Dialog
+      open={confirmMode === 'hard'}
+      title={`Permanently delete "${product?.name}"?`}
+      message="The product and all its batches will be permanently wiped. This only works if the product has never been ordered. This action cannot be undone."
+      variant="confirm"
+      confirmLabel="Delete forever"
+      confirmClass="bg-red-600 hover:bg-red-700 text-white"
+      onConfirm={() => doDelete('hard')}
+      onCancel={() => setConfirmMode(null)}
     />
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
       <div className="bg-white dark:bg-gray-900 w-full max-w-lg rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl">
@@ -627,7 +636,7 @@ function ProductFormModal({
         <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex flex-wrap gap-2">
           {isEdit && (
             <button
-              onClick={() => doDelete('hard')}
+              onClick={() => setConfirmMode('hard')}
               className="px-3 py-2.5 text-red-600 dark:text-red-400 rounded-xl font-semibold hover:bg-red-50 dark:hover:bg-red-950/30"
               title="Permanently delete (only works if never ordered)"
             >
@@ -636,7 +645,7 @@ function ProductFormModal({
           )}
           {isEdit && product.is_active && (
             <button
-              onClick={() => doDelete('soft')}
+              onClick={() => setConfirmMode('soft')}
               className="px-3 py-2.5 text-amber-700 dark:text-amber-400 rounded-xl font-semibold hover:bg-amber-50 dark:hover:bg-amber-950/30"
               title="Hide from catalogue (keeps history)"
             >
