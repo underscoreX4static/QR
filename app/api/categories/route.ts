@@ -1,19 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Category } from '@/types'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
+function freshClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false }, global: { fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }) } }
+  )
+}
 
 // GET /api/categories — list all
 export async function GET() {
-  const { data } = await supabaseAdmin
+  const sb = freshClient()
+  const { data } = await sb
     .from('categories')
     .select()
     .order('sort_order', { ascending: true })
     .returns<Category[]>()
 
   return NextResponse.json({ categories: data ?? [] }, {
-    headers: { 'Cache-Control': 'no-store' },
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' },
   })
 }
 
@@ -25,7 +37,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Name required' }, { status: 400 })
   }
 
-  // Default sort_order = max + 1
   let finalSortOrder = sort_order
   if (finalSortOrder == null) {
     const { data: existing } = await supabaseAdmin
