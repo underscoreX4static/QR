@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase'
 import type { Category, Product } from '@/types'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const fetchCache = 'force-no-store'
+
 // GET /api/products — full catalogue (categories > products)
 export async function GET() {
-  const { data: categories, error: catError } = await supabaseAdmin
+  // Fresh Supabase client per request — avoid stale data from pooler/module cache.
+  // The Telegram Mini App webview aggressively caches responses; we also hammer
+  // the response with strict no-store headers below.
+  const sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false }, global: { fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }) } }
+  )
+
+  const { data: categories, error: catError } = await sb
     .from('categories')
     .select()
     .eq('is_active', true)
@@ -16,11 +30,12 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch categories', detail: catError.message }, { status: 500 })
   }
 
-  const { data: products, error: prodError } = await supabaseAdmin
+  const { data: products, error: prodError } = await sb
     .from('products')
     .select('id,category_id,name,description,image_url,brand,subcategory,size,price_sell,stock_qty,is_active')
     .eq('is_active', true)
     .order('name', { ascending: true })
+    .limit(1000)
     .returns<Product[]>()
 
   if (prodError) {
@@ -35,7 +50,7 @@ export async function GET() {
   }))
 
   return NextResponse.json({ catalogue }, {
-    headers: { 'Cache-Control': 'no-store' },
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' },
   })
 }
 

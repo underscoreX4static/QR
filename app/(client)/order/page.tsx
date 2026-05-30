@@ -66,9 +66,12 @@ function OrderApp() {
 
     async function load() {
       try {
+        // Cache-bust + no-store: Telegram Mini App webview otherwise serves
+        // stale data for hours after a product is removed or updated.
+        const t = Date.now()
         const [qrRes, catRes] = await Promise.all([
-          fetch(`/api/qr?slug=${qrSlug}`),
-          fetch('/api/products'),
+          fetch(`/api/qr?slug=${qrSlug}&t=${t}`, { cache: 'no-store' }),
+          fetch(`/api/products?t=${t}`, { cache: 'no-store' }),
         ])
 
         if (cancelled) return
@@ -104,7 +107,19 @@ function OrderApp() {
     }
 
     load()
-    return () => { cancelled = true }
+
+    // Re-fetch catalogue when the Mini App becomes visible again.
+    // Without this, Telegram's webview keeps the JS state alive and shows
+    // a stale catalogue for hours after products have been removed/updated.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [qrSlug])
 
   const handleOrder = useCallback(async (address: string, notes: string, scheduledAt?: string) => {
