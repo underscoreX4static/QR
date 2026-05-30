@@ -6,6 +6,7 @@ import type { Cart } from '@/lib/cart'
 import { addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } from '@/lib/cart'
 import ProductCard from './ProductCard'
 import ProductDetailModal from './ProductDetailModal'
+import StoreStatusBanner from './StoreStatusBanner'
 
 interface CatalogueCategory extends Category { products: Product[] }
 
@@ -138,6 +139,9 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
 
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-20 bg-white border-b border-gray-100 shadow-sm">
+
+        {/* Store status banner (only renders when closed) */}
+        <StoreStatusBanner />
 
         {/* Search bar */}
         <div className="px-3 pt-3 pb-2">
