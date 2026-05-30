@@ -32,6 +32,7 @@ export async function GET() {
     { data: allHistory },
     { data: allDrivers },
     { data: allQRCodes },
+    { data: allMessages },
   ] = await Promise.all([
     supabaseAdmin
       .from('order_items')
@@ -54,6 +55,12 @@ export async function GET() {
       .select('id,partner_id')
       .in('id', qrIds)
       .returns<Pick<QRCode, 'id' | 'partner_id'>[]>(),
+    // Lightweight per-order chat status: total + unread count for pro side
+    supabaseAdmin
+      .from('order_messages')
+      .select('order_id,read_by_pro')
+      .in('order_id', orderIds)
+      .returns<{ order_id: string; read_by_pro: boolean }[]>(),
   ])
 
   const partnerIds = Array.from(new Set((allQRCodes ?? []).map((q) => q.partner_id)))
@@ -72,6 +79,14 @@ export async function GET() {
   const driverList = (allDrivers as unknown as Pick<Driver, 'id' | 'first_name' | 'last_name' | 'is_owner' | 'is_active'>[]) ?? []
   const driverMap = Object.fromEntries(driverList.map((d) => [d.id, [d.first_name, d.last_name].filter(Boolean).join(' ')]))
 
+  // Aggregate message counts per order
+  const msgTotal: Record<string, number> = {}
+  const msgUnreadPro: Record<string, number> = {}
+  for (const m of allMessages ?? []) {
+    msgTotal[m.order_id] = (msgTotal[m.order_id] ?? 0) + 1
+    if (!m.read_by_pro) msgUnreadPro[m.order_id] = (msgUnreadPro[m.order_id] ?? 0) + 1
+  }
+
   const ordersWithItems = orders.map((order) => ({
     ...order,
     driver_name: order.driver_id ? (driverMap[order.driver_id] ?? 'Unknown driver') : null,
@@ -83,6 +98,8 @@ export async function GET() {
         return { ...item, productName: p?.name ?? '—', productSize: p?.size ?? null }
       }),
     history: (allHistory ?? []).filter((h) => h.order_id === order.id),
+    messages_total: msgTotal[order.id] ?? 0,
+    messages_unread_pro: msgUnreadPro[order.id] ?? 0,
   }))
 
   return NextResponse.json({ orders: ordersWithItems, drivers: driverList }, {

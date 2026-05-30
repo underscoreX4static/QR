@@ -36,10 +36,19 @@ async function handleMessage(msg: TelegramBot.Message) {
 
   const driver = await getDriver(telegramId)
   if (driver) {
-    // Check if we're waiting for a cancel reason from this driver
+    // Are we waiting for a chat reply from this driver?
+    const pendingChatKey = `pending_chat:${telegramId}`
+    const { data: pendingChat } = await supabaseAdmin
+      .from('settings').select('value').eq('key', pendingChatKey).maybeSingle()
+    if (pendingChat?.value) {
+      await handleChatReply(chatId, telegramId, driver, pendingChat.value, text)
+      return
+    }
+
+    // Are we waiting for a cancel reason from this driver?
     const pendingCancelKey = `pending_cancel:${telegramId}`
     const { data: pendingCancel } = await supabaseAdmin
-      .from('settings').select('value').eq('key', pendingCancelKey).single()
+      .from('settings').select('value').eq('key', pendingCancelKey).maybeSingle()
     if (pendingCancel?.value) {
       await handleCancelReason(chatId, telegramId, driver, pendingCancel.value, text)
       return
@@ -51,6 +60,68 @@ async function handleMessage(msg: TelegramBot.Message) {
 
   const user = await getOrCreateUser(telegramId, msg.from!)
   await sendOrderButton(chatId, user)
+}
+
+// ─── Customer-chat: pro typed a reply via Telegram ─────────────────────────
+async function handleChatReply(
+  chatId: number,
+  telegramId: string,
+  driver: Driver,
+  shortOrFullId: string,
+  text: string,
+) {
+  // Cancel the pending state regardless of outcome
+  await supabaseAdmin.from('settings').delete().eq('key', `pending_chat:${telegramId}`)
+
+  if (text === '/cancel') {
+    await sendMessage(chatId, '↩️ Reply cancelled.')
+    return
+  }
+
+  // Find the order by short id (6-char suffix, uppercase in messages but DB is lowercase)
+  const suffix = shortOrFullId.toLowerCase()
+  const { data: order } = await supabaseAdmin
+    .from('orders')
+    .select('id,user_id,driver_id,status,updated_at')
+    .ilike('id', `%${suffix}`)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }>()
+
+  if (!order) {
+    await sendMessage(chatId, `⚠️ Couldn't find order #${shortOrFullId}.`)
+    return
+  }
+
+  // Insert the message — sender_role depends on whether this driver owns the order
+  const isAssignedDriver = order.driver_id === driver.id
+  const sender_role = isAssignedDriver && !driver.is_owner ? 'driver' : 'owner'
+
+  const { error } = await supabaseAdmin.from('order_messages').insert({
+    order_id:    order.id,
+    sender_role,
+    sender_id:   driver.id,
+    body:        text,
+    read_by_customer: false,
+    read_by_pro:      true,
+  })
+
+  if (error) {
+    await sendMessage(chatId, `⚠️ Could not send: ${error.message}`)
+    return
+  }
+
+  // Notify the customer
+  const { data: u } = await supabaseAdmin
+    .from('users').select('telegram_id').eq('id', order.user_id).maybeSingle<{ telegram_id: string }>()
+  if (u?.telegram_id) {
+    const truncated = text.length > 200 ? text.slice(0, 200) + '…' : text
+    await sendMessage(Number(u.telegram_id),
+      `📩 Reply from delivery on order #${shortOrFullId.toUpperCase()}:\n\n"${truncated}"\n\nOpen the app to continue the chat.`
+    ).catch(() => null)
+  }
+
+  await sendMessage(chatId, `✅ Reply sent to customer (#${shortOrFullId.toUpperCase()}).`)
 }
 
 async function handleStart(chatId: number, telegramId: string, from: TelegramBot.User, rawText: string) {
@@ -159,6 +230,27 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
 
   try {
   const driver = await getDriver(telegramId)
+
+  // ── chat_reply — pro replies to a customer message ─────────────────────────
+  if (data.startsWith('chat_reply:')) {
+    if (!driver) return
+    const shortOrFullId = data.split(':')[1]
+    if (!shortOrFullId) return
+
+    // Mark this driver as expecting a chat reply
+    await supabaseAdmin.from('settings').delete().eq('key', `pending_chat:${telegramId}`)
+    await supabaseAdmin.from('settings').insert({
+      key: `pending_chat:${telegramId}`,
+      value: shortOrFullId,
+      updated_at: new Date().toISOString(),
+      updated_by: 'system',
+    })
+
+    await sendMessage(chatId,
+      `💬 Type your reply for order #${shortOrFullId.toUpperCase()}.\n(Send /cancel to abort.)`
+    )
+    return
+  }
 
   // ── confirm_order ──────────────────────────────────────────────────────────
   if (data.startsWith('confirm_order:')) {

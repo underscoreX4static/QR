@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { Order, OrderItem, OrderStatus } from '@/types'
 import Dialog from '@/components/ui/Dialog'
+import OrderChatPanel from '@/components/admin/OrderChatPanel'
 
 interface StatusHistoryRow {
   order_id: string
@@ -27,6 +28,8 @@ interface OrderWithItems extends Order {
   partner: PartnerInfo | null
   items: OrderItemWithProduct[]
   history: StatusHistoryRow[]
+  messages_total: number
+  messages_unread_pro: number
 }
 
 
@@ -83,6 +86,8 @@ function OrderCard({
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({})
   const [showChecklist, setShowChecklist] = useState(false)
   const [showCancelDialog, setShowCancelDialog] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const shortId = order.id.slice(-6).toUpperCase()
 
   const showWaze = ['confirmed', 'preparing'].includes(order.status) && order.partner?.address
 
@@ -210,6 +215,29 @@ function OrderCard({
           {order.status === 'cancelled' && <span className="text-xs text-red-400">Cancelled</span>}
           {order.status === 'delivered' && <span className="text-xs text-green-500">Delivered ✓</span>}
 
+          {/* Chat button — always visible, badge shows unread count */}
+          <button
+            onClick={() => setShowChat(true)}
+            className={`relative px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+              order.messages_unread_pro > 0
+                ? 'bg-blue-600 text-white hover:bg-blue-700 animate-pulse'
+                : order.messages_total > 0
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 hover:bg-blue-100'
+                : 'bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-100'
+            }`}
+          >
+            <span>💬</span>
+            <span>Chat</span>
+            {order.messages_unread_pro > 0 && (
+              <span className="bg-white text-blue-700 text-[10px] font-bold rounded-full min-w-[18px] h-[18px] px-1 inline-flex items-center justify-center">
+                {order.messages_unread_pro}
+              </span>
+            )}
+            {order.messages_unread_pro === 0 && order.messages_total > 0 && (
+              <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">{order.messages_total}</span>
+            )}
+          </button>
+
           {next && (
             <div className="flex flex-wrap items-center gap-2 justify-end">
               {!order.driver_id && ['confirmed', 'preparing', 'on_the_way'].includes(order.status) && (
@@ -242,6 +270,13 @@ function OrderCard({
         </div>
       </div>
     </div>
+    {showChat && (
+      <OrderChatPanel
+        orderId={order.id}
+        shortId={shortId}
+        onClose={() => setShowChat(false)}
+      />
+    )}
     </>
   )
 }

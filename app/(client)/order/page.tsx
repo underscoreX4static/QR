@@ -198,9 +198,12 @@ function OrderApp() {
   }
 
   if (view === 'confirmation' && confirmedOrder) {
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user
+    const telegramId = tgUser?.id ? String(tgUser.id) : null
     return (
       <OrderConfirmation
         order={confirmedOrder}
+        telegramId={telegramId}
         onClose={() => window.Telegram?.WebApp?.close()}
       />
     )

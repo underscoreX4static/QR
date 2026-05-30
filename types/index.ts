@@ -166,6 +166,19 @@ export interface Setting {
   updated_by: string
 }
 
+export type MessageSenderRole = 'customer' | 'driver' | 'owner'
+
+export interface OrderMessage {
+  id: string
+  order_id: string
+  sender_role: MessageSenderRole
+  sender_id: string | null
+  body: string
+  read_by_customer: boolean
+  read_by_pro: boolean
+  created_at: string
+}
+
 // ─── Database type map (for Supabase client) ─────────────────────────────────
 
 // ─── Database type map (for Supabase client) ─────────────────────────────────
@@ -196,6 +209,7 @@ export interface Database {
       settlements:          TableDef<Settlement>
       settlement_orders:    TableDef<SettlementOrder>
       settings:             TableDef<Setting>
+      order_messages:       TableDef<OrderMessage>
     }
     Views: Record<string, { Row: Record<string, unknown>; Relationships: [] }>
     Functions: Record<string, never>
