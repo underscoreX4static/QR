@@ -179,7 +179,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
               <>
                 <div className="bg-white rounded-2xl divide-y divide-gray-50 shadow-sm">
                   {cart.items.map((item) => (
-                    <div key={item.variantId} className="flex items-center justify-between px-4 py-3">
+                    <div key={item.productId} className="flex items-center justify-between px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm truncate">{item.productName}</p>
                         <p className="text-xs text-gray-500">{item.size}</p>
@@ -187,12 +187,12 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => onCartChange(updateQuantity(cart, item.variantId, item.quantity - 1))}
+                            onClick={() => onCartChange(updateQuantity(cart, item.productId, item.quantity - 1))}
                             className="w-7 h-7 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center font-bold text-lg leading-none"
                           >−</button>
                           <span className="w-5 text-center text-sm font-semibold">{item.quantity}</span>
                           <button
-                            onClick={() => onCartChange(updateQuantity(cart, item.variantId, item.quantity + 1))}
+                            onClick={() => onCartChange(updateQuantity(cart, item.productId, item.quantity + 1))}
                             className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg leading-none"
                           >+</button>
                         </div>
@@ -558,7 +558,7 @@ export default function CartView({ cart, onCartChange, onBack, onOrder, isLoadin
                 <p className="font-semibold text-gray-900 text-sm">Order</p>
               </div>
               {cart.items.map((item) => (
-                <div key={item.variantId} className="flex justify-between px-4 py-2.5 text-sm border-b border-gray-50">
+                <div key={item.productId} className="flex justify-between px-4 py-2.5 text-sm border-b border-gray-50">
                   <span className="text-gray-700">{item.quantity}× {item.productName} <span className="text-gray-400">{item.size}</span></span>
                   <span className="font-medium">${(item.priceSell * item.quantity).toFixed(2)}</span>
                 </div>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase'
-import type { Order, OrderItem, Variant, Product, Driver, Partner, QRCode } from '@/types'
+import type { Order, OrderItem, Product, Driver, Partner, QRCode } from '@/types'
 
 interface StatusHistoryRow {
   order_id: string
@@ -35,7 +35,7 @@ export async function GET() {
   ] = await Promise.all([
     supabaseAdmin
       .from('order_items')
-      .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
+      .select('id,order_id,product_id,batch_id,quantity,unit_price_sell,unit_price_cost,line_total')
       .in('order_id', orderIds)
       .returns<OrderItem[]>(),
     supabaseAdmin
@@ -61,18 +61,12 @@ export async function GET() {
     ? await supabaseAdmin.from('partners').select('id,name,address').in('id', partnerIds).returns<Pick<Partner, 'id' | 'name' | 'address'>[]>()
     : { data: [] as Pick<Partner, 'id' | 'name' | 'address'>[] }
 
-  const variantIds = Array.from(new Set((allItems ?? []).map((i) => i.variant_id)))
-  const { data: allVariants } = variantIds.length
-    ? await supabaseAdmin.from('variants').select('id,product_id,size,price_sell,price_cost,stock_qty,is_active').in('id', variantIds).returns<Variant[]>()
-    : { data: [] as Variant[] }
-
-  const productIds = Array.from(new Set((allVariants ?? []).map((v) => v.product_id)))
+  const productIds = Array.from(new Set((allItems ?? []).map((i) => i.product_id)))
   const { data: allProducts } = productIds.length
-    ? await supabaseAdmin.from('products').select('id,name').in('id', productIds).returns<Pick<Product, 'id' | 'name'>[]>()
-    : { data: [] as Pick<Product, 'id' | 'name'>[] }
+    ? await supabaseAdmin.from('products').select('id,name,size').in('id', productIds).returns<Pick<Product, 'id' | 'name' | 'size'>[]>()
+    : { data: [] as Pick<Product, 'id' | 'name' | 'size'>[] }
 
-  const variantMap = Object.fromEntries((allVariants ?? []).map((v) => [v.id, v]))
-  const productMap = Object.fromEntries((allProducts ?? []).map((p) => [p.id, p.name]))
+  const productMap = Object.fromEntries((allProducts ?? []).map((p) => [p.id, p]))
   const partnerMap = Object.fromEntries((allPartners ?? []).map((p) => [p.id, p]))
   const qrToPartner = Object.fromEntries((allQRCodes ?? []).map((q) => [q.id, partnerMap[q.partner_id] ?? null]))
   const driverList = (allDrivers as unknown as Pick<Driver, 'id' | 'first_name' | 'last_name' | 'is_owner' | 'is_active'>[]) ?? []
@@ -85,8 +79,8 @@ export async function GET() {
     items: (allItems ?? [])
       .filter((i) => i.order_id === order.id)
       .map((item) => {
-        const variant = variantMap[item.variant_id] ?? null
-        return { ...item, variant, productName: variant ? (productMap[variant.product_id] ?? '—') : '—' }
+        const p = productMap[item.product_id]
+        return { ...item, productName: p?.name ?? '—', productSize: p?.size ?? null }
       }),
     history: (allHistory ?? []).filter((h) => h.order_id === order.id),
   }))

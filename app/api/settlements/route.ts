@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
   const unsettledOrderIds = unsettledOrders.map((o) => o.id)
   const { data: allItems } = await supabaseAdmin
     .from('order_items')
-    .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
+    .select('id,order_id,product_id,batch_id,quantity,unit_price_sell,unit_price_cost,line_total')
     .in('order_id', unsettledOrderIds)
     .returns<OrderItem[]>()
 

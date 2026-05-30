@@ -16,29 +16,26 @@ export async function POST(_req: NextRequest, { params }: { params: { id: string
     return NextResponse.json({ error: 'Order must be active to assign' }, { status: 400 })
   }
 
-  // Fetch items for the message
+  // Fetch items for the message (aggregate by product since FIFO may split)
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('quantity,variant_id')
+    .select('quantity,product_id')
     .eq('order_id', params.id)
 
-  const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
-  const { data: variants } = variantIds.length
-    ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds)
-    : { data: [] }
-
-  const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
+  const aggregated: Record<string, number> = {}
+  for (const it of (items ?? []) as { product_id: string; quantity: number }[]) {
+    aggregated[it.product_id] = (aggregated[it.product_id] ?? 0) + it.quantity
+  }
+  const productIds = Object.keys(aggregated)
   const { data: products } = productIds.length
-    ? await supabaseAdmin.from('products').select('id,name').in('id', productIds)
+    ? await supabaseAdmin.from('products').select('id,name,size').in('id', productIds)
     : { data: [] }
 
-  const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-  const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+  const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string; size: string | null }) => [p.id, p]))
 
-  const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
-    const v = variantMap[i.variant_id]
-    const name = v ? (productMap[v.product_id] ?? '?') : '?'
-    return `  • ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
+  const itemLines = Object.entries(aggregated).map(([pid, qty]) => {
+    const p = productMap[pid]
+    return `  • ${qty}× ${p?.name ?? '?'}${p?.size ? ` ${p.size}` : ''}`
   }).join('\n')
 
   const shortId = params.id.slice(-6).toUpperCase()

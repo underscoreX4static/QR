@@ -3,7 +3,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage } from '@/lib/telegram'
 import { calculateDeliveryFee, calculateDiscount } from '@/lib/delivery'
 import { geocodeAddress } from '@/lib/geocoding'
-import type { Order, OrderItem, Driver } from '@/types'
+import { planConsumption, commitConsumption, type ConsumedLine } from '@/lib/inventory'
+import type { Order, Driver, Product } from '@/types'
 
 // GET /api/orders?user_id=xxx — orders for a user
 // GET /api/orders?driver_id=xxx — orders for a driver
@@ -35,28 +36,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  // Resolve user_id from telegram_id, creating the user if they don't exist yet
-  // (Mini App users may not have sent /start to the bot)
+  // Resolve user_id from telegram_id, creating the user if they don't exist
   let resolvedUserId: string = user_id
   if (!resolvedUserId && telegram_id) {
     const tidStr = String(telegram_id)
-
-    // Try existing user first
     const { data: existing } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('telegram_id', tidStr)
-      .single()
+      .from('users').select('id').eq('telegram_id', tidStr).single()
 
     if (existing) {
       resolvedUserId = existing.id
     } else {
-      // Create new user
       const { data: created } = await supabaseAdmin
         .from('users')
         .insert({ telegram_id: tidStr, first_name: body.first_name ?? 'Customer' })
-        .select('id')
-        .single()
+        .select('id').single()
 
       if (!created) {
         return NextResponse.json({ error: 'Failed to resolve user' }, { status: 500 })
@@ -65,44 +58,48 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fetch variants to get current prices
-  const variantIds: string[] = items.map((i: { variant_id: string }) => i.variant_id)
-  const { data: variants } = await supabaseAdmin
-    .from('variants')
-    .select('id,product_id,size,price_sell,price_cost,stock_qty,is_active')
-    .in('id', variantIds)
+  // ── Validate items and plan FIFO consumption ───────────────────────────────
+  type IncomingItem = { product_id: string; quantity: number }
+  const incoming: IncomingItem[] = items
+
+  // Verify all products exist & active
+  const productIds = incoming.map((i) => i.product_id)
+  const { data: products } = await supabaseAdmin
+    .from('products')
+    .select('id,name,size,is_active')
+    .in('id', productIds)
     .eq('is_active', true)
+    .returns<Pick<Product, 'id' | 'name' | 'size' | 'is_active'>[]>()
 
-  if (!variants || variants.length !== variantIds.length) {
-    return NextResponse.json({ error: 'One or more variants are unavailable' }, { status: 400 })
+  if (!products || products.length !== productIds.length) {
+    return NextResponse.json({ error: 'One or more products are unavailable' }, { status: 400 })
   }
 
-  // Build order items with locked prices
-  const orderItems = items.map((item: { variant_id: string; quantity: number }) => {
-    const variant = variants.find((v) => v.id === item.variant_id)
-    if (!variant) return null
-    return {
-      variant_id: item.variant_id,
-      quantity: item.quantity,
-      unit_price_sell: variant.price_sell,
-      unit_price_cost: variant.price_cost,
-      line_total: variant.price_sell * item.quantity,
+  // Plan FIFO consumption for each product (dry-run, no DB changes yet)
+  const allLines: ConsumedLine[] = []
+  for (const item of incoming) {
+    const plan = await planConsumption(item.product_id, item.quantity)
+    if (!plan.ok) {
+      const product = products.find((p) => p.id === item.product_id)
+      return NextResponse.json({
+        error: `Not enough stock for ${product?.name ?? 'product'}`,
+        product_id: item.product_id,
+        available: plan.available,
+      }, { status: 400 })
     }
-  }).filter(Boolean)
-
-  if (orderItems.length !== items.length) {
-    return NextResponse.json({ error: 'One or more variants are unavailable' }, { status: 400 })
+    allLines.push(...plan.lines)
   }
 
-  const subtotal = orderItems.reduce((s: number, i: typeof orderItems[0]) => s + i.line_total, 0)
+  // ── Compute totals from real FIFO prices ───────────────────────────────────
+  const subtotal = allLines.reduce((s, l) => s + l.line_total, 0)
   const deliveryFee = calculateDeliveryFee(subtotal)
   const discount = calculateDiscount(subtotal)
   const total = subtotal - discount + deliveryFee
 
-  // Geocode client address (best-effort, don't block order creation)
+  // Geocode (best-effort)
   const coords = await geocodeAddress(delivery_address).catch(() => null)
 
-  // Create order
+  // ── Create the order ───────────────────────────────────────────────────────
   const { data: order, error: orderError } = await supabaseAdmin
     .from('orders')
     .insert({
@@ -122,17 +119,24 @@ export async function POST(req: NextRequest) {
     .single<Order>()
 
   if (orderError || !order) {
+    console.error('order insert error:', orderError)
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
   }
 
-  // Insert order items
+  // Insert order items (one line per consumed batch — preserves exact margin)
   const { error: itemsError } = await supabaseAdmin
     .from('order_items')
-    .insert(orderItems.map((i: Omit<OrderItem, 'id' | 'order_id'>) => ({ ...i, order_id: order.id })))
+    .insert(allLines.map((l) => ({ ...l, order_id: order.id })))
 
   if (itemsError) {
     await supabaseAdmin.from('orders').delete().eq('id', order.id)
     return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
+  }
+
+  // Commit batch decrements (FIFO consumption is locked in)
+  const committed = await commitConsumption(allLines)
+  if (!committed) {
+    console.error('Failed to commit consumption — order created but stock not decremented')
   }
 
   // Record initial status
@@ -142,7 +146,10 @@ export async function POST(req: NextRequest) {
     changed_by: `user:${resolvedUserId}`,
   })
 
-  // Notify owner (admin) of new order
+  // Check low stock alerts (after consumption)
+  await checkLowStockAlerts(allLines.map((l) => l.product_id))
+
+  // ── Notify owner ───────────────────────────────────────────────────────────
   const { data: owners } = await supabaseAdmin
     .from('drivers')
     .select('telegram_id')
@@ -165,7 +172,7 @@ export async function POST(req: NextRequest) {
       },
     }))
   )
-  // Store message_ids so we can edit them later (remove buttons when order is handled)
+
   const ownerList = owners ?? []
   for (let i = 0; i < ownerList.length; i++) {
     const result = ownerResults[i]
@@ -177,7 +184,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Notify customer — order received, pending confirmation
+  // Notify customer
   const scheduleCustomerNote = scheduled_at
     ? `\n🕐 Scheduled for: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
     : '\n⚡ ASAP delivery'
@@ -185,4 +192,47 @@ export async function POST(req: NextRequest) {
   await sendMessage(Number(telegram_id), customerMsg).catch(() => null)
 
   return NextResponse.json({ order }, { status: 201 })
+}
+
+// Low-stock alert: notify owners once per variant when stock drops below threshold.
+// Tracks state in settings (`low_stock_alert:{product_id}`) to avoid spam.
+async function checkLowStockAlerts(productIds: string[]) {
+  const uniqueIds = Array.from(new Set(productIds))
+  const { data: products } = await supabaseAdmin
+    .from('products')
+    .select('id,name,size,stock_qty,low_stock_threshold')
+    .in('id', uniqueIds)
+    .returns<Pick<Product, 'id' | 'name' | 'size' | 'stock_qty' | 'low_stock_threshold'>[]>()
+
+  if (!products?.length) return
+
+  const lowStock = products.filter((p) => p.stock_qty <= p.low_stock_threshold)
+  if (!lowStock.length) return
+
+  // Get existing alert keys to filter out already-alerted products
+  const keys = lowStock.map((p) => `low_stock_alert:${p.id}`)
+  const { data: existing } = await supabaseAdmin
+    .from('settings').select('key').in('key', keys)
+  const alreadyAlerted = new Set((existing ?? []).map((s) => s.key))
+
+  const toNotify = lowStock.filter((p) => !alreadyAlerted.has(`low_stock_alert:${p.id}`))
+  if (!toNotify.length) return
+
+  const { data: owners } = await supabaseAdmin
+    .from('drivers').select('telegram_id').eq('is_owner', true).eq('is_active', true)
+    .returns<Pick<Driver, 'telegram_id'>[]>()
+
+  for (const p of toNotify) {
+    const msg = p.stock_qty === 0
+      ? `🔴 OUT OF STOCK: ${p.name}${p.size ? ' ' + p.size : ''}`
+      : `🟠 LOW STOCK: ${p.name}${p.size ? ' ' + p.size : ''} — only ${p.stock_qty} left`
+    for (const o of owners ?? []) {
+      await sendMessage(Number(o.telegram_id), msg).catch(() => null)
+    }
+    // Mark as alerted
+    await supabaseAdmin.from('settings').upsert(
+      { key: `low_stock_alert:${p.id}`, value: String(p.stock_qty), updated_at: new Date().toISOString(), updated_by: 'system' },
+      { onConflict: 'key' }
+    )
+  }
 }

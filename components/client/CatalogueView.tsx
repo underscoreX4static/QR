@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { Category, Product, Variant } from '@/types'
+import type { Category, Product } from '@/types'
 import type { Cart } from '@/lib/cart'
 import { addToCart, cartCount, cartTotal } from '@/lib/cart'
 import ProductCard from './ProductCard'
 
-interface CatalogueItem extends Product { variants: Variant[] }
-interface CatalogueCategory extends Category { products: CatalogueItem[] }
+interface CatalogueCategory extends Category { products: Product[] }
 
 interface Props {
   catalogue: CatalogueCategory[]
@@ -68,25 +67,21 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
       items = items.filter((p) => p.brand === activeBrand)
     }
 
-    // Only products with active variants in stock
-    items = items.filter((p) => p.variants.some((v) => v.is_active && v.stock_qty > 0))
-
-    // Sort
+    // Sort (keep out-of-stock visible at the end so client sees what's normally available)
     if (sort === 'price_asc') {
-      items = [...items].sort((a, b) => {
-        const minA = Math.min(...a.variants.filter(v => v.is_active).map(v => Number(v.price_sell)))
-        const minB = Math.min(...b.variants.filter(v => v.is_active).map(v => Number(v.price_sell)))
-        return minA - minB
-      })
+      items = [...items].sort((a, b) => Number(a.price_sell) - Number(b.price_sell))
     } else if (sort === 'price_desc') {
-      items = [...items].sort((a, b) => {
-        const minA = Math.min(...a.variants.filter(v => v.is_active).map(v => Number(v.price_sell)))
-        const minB = Math.min(...b.variants.filter(v => v.is_active).map(v => Number(v.price_sell)))
-        return minB - minA
-      })
+      items = [...items].sort((a, b) => Number(b.price_sell) - Number(a.price_sell))
     } else if (sort === 'name_asc') {
       items = [...items].sort((a, b) => a.name.localeCompare(b.name))
     }
+
+    // Always push out-of-stock to the bottom
+    items = [...items].sort((a, b) => {
+      const aOut = a.stock_qty <= 0 ? 1 : 0
+      const bOut = b.stock_qty <= 0 ? 1 : 0
+      return aOut - bOut
+    })
 
     return items
   }, [allProducts, activeCategory, search, activeBrand, sort])
@@ -242,7 +237,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 key={product.id}
                 product={product}
                 cart={cart}
-                onAdd={(variant) => onCartChange(addToCart(cart, variant, product))}
+                onAdd={(p) => onCartChange(addToCart(cart, p))}
               />
             ))}
           </div>

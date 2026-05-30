@@ -3,6 +3,7 @@ import TelegramBot from 'node-telegram-bot-api'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendMessage, editMessageReplyMarkup } from '@/lib/telegram'
 import { calcOrderEarnings } from '@/lib/earnings'
+import { refundConsumption } from '@/lib/inventory'
 import type { Order, OrderStatus, Driver } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -50,7 +51,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 
   const { data: items } = await supabaseAdmin
     .from('order_items')
-    .select('id,order_id,variant_id,quantity,unit_price_sell,unit_price_cost,line_total')
+    .select('id,order_id,product_id,batch_id,quantity,unit_price_sell,unit_price_cost,line_total')
     .eq('order_id', params.id)
 
   const { data: history } = await supabaseAdmin
@@ -125,6 +126,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       status: status as OrderStatus,
       changed_by: driver_id ? `driver:${driver_id}` : 'admin',
     })
+
+    // Restock batches on cancellation (only if not already cancelled)
+    if (status === 'cancelled' && current.status !== 'cancelled') {
+      await refundConsumption(params.id)
+    }
 
     const shortId = params.id.slice(-6).toUpperCase()
 
@@ -268,18 +274,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       .single<Pick<Driver, 'telegram_id'>>()
 
     if (driverRecord?.telegram_id) {
-      // Fetch items for the message
-      const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity').eq('order_id', params.id)
-      const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
-      const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
-      const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
-      const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
-      const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-      const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
-      const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
-        const v = variantMap[i.variant_id]
-        const name = v ? (productMap[(v as { product_id: string }).product_id] ?? '?') : '?'
-        return `  ☐ ${i.quantity}× ${name}${(v as { size?: string })?.size ? ` ${(v as { size: string }).size}` : ''}`
+      // Fetch items for the message (aggregate by product since FIFO may split)
+      const { data: items } = await supabaseAdmin.from('order_items').select('product_id,quantity').eq('order_id', params.id)
+      const aggregated: Record<string, number> = {}
+      for (const it of (items ?? []) as { product_id: string; quantity: number }[]) {
+        aggregated[it.product_id] = (aggregated[it.product_id] ?? 0) + it.quantity
+      }
+      const productIds = Object.keys(aggregated)
+      const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name,size').in('id', productIds) : { data: [] }
+      const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string; size: string | null }) => [p.id, p]))
+      const itemLines = Object.entries(aggregated).map(([pid, qty]) => {
+        const p = productMap[pid]
+        const name = p?.name ?? '?'
+        const size = p?.size ?? ''
+        return `  ☐ ${qty}× ${name}${size ? ` ${size}` : ''}`
       }).join('\n')
 
       const total = Number(updated.total)

@@ -71,17 +71,26 @@ export interface Product {
   image_url: string | null
   brand: string | null
   subcategory: string | null
-  is_active: boolean
-}
-
-export interface Variant {
-  id: string
-  product_id: string
-  size: string
+  size: string | null
   price_sell: number
   price_cost: number
   stock_qty: number
+  low_stock_threshold: number
+  barcode: string | null
   is_active: boolean
+}
+
+export interface ProductBatch {
+  id: string
+  product_id: string
+  quantity_received: number
+  quantity_remaining: number
+  price_cost: number
+  price_sell: number
+  received_at: string
+  supplier: string | null
+  notes: string | null
+  created_at: string
 }
 
 export interface Order {
@@ -103,7 +112,8 @@ export interface Order {
 export interface OrderItem {
   id: string
   order_id: string
-  variant_id: string
+  product_id: string
+  batch_id: string | null
   quantity: number
   unit_price_sell: number
   unit_price_cost: number
@@ -178,7 +188,7 @@ export interface Database {
       users:                TableDef<User>
       categories:           TableDef<Category>
       products:             TableDef<Product>
-      variants:             TableDef<Variant>
+      product_batches:      TableDef<ProductBatch>
       orders:               TableDef<Order>
       order_items:          TableDef<OrderItem>
       order_status_history: TableDef<OrderStatusHistory>

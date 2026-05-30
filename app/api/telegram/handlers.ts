@@ -111,20 +111,21 @@ async function handleDriverMessage(chatId: number, driver: Driver, text: string)
     }
 
     const orderIds = orders.map((o) => o.id)
-    const { data: allItems } = await supabaseAdmin.from('order_items').select('order_id,variant_id,quantity').in('order_id', orderIds)
-    const variantIds = Array.from(new Set((allItems ?? []).map((i: { variant_id: string }) => i.variant_id)))
-    const { data: allVariants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
-    const productIds = Array.from(new Set((allVariants ?? []).map((v: { product_id: string }) => v.product_id)))
-    const { data: allProducts } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
-    const variantMap = Object.fromEntries((allVariants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-    const productMap = Object.fromEntries((allProducts ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
+    const { data: allItems } = await supabaseAdmin.from('order_items').select('order_id,product_id,quantity').in('order_id', orderIds)
+    const productIds = Array.from(new Set((allItems ?? []).map((i: { product_id: string }) => i.product_id)))
+    const { data: allProducts } = productIds.length ? await supabaseAdmin.from('products').select('id,name,size').in('id', productIds) : { data: [] }
+    const productMap = Object.fromEntries((allProducts ?? []).map((p: { id: string; name: string; size: string | null }) => [p.id, p]))
 
     for (const order of orders) {
-      const items = (allItems ?? []).filter((i: { order_id: string }) => i.order_id === order.id)
-      const itemLines = items.map((i: { quantity: number; variant_id: string }) => {
-        const v = variantMap[i.variant_id]
-        const name = v ? (productMap[v.product_id] ?? '?') : '?'
-        return `  • ${i.quantity}× ${name}${v?.size ? ` ${v.size}` : ''}`
+      // FIFO can split a product across multiple batches → aggregate per product for display
+      const orderItems = (allItems ?? []).filter((i: { order_id: string }) => i.order_id === order.id) as { product_id: string; quantity: number }[]
+      const agg: Record<string, number> = {}
+      for (const it of orderItems) {
+        agg[it.product_id] = (agg[it.product_id] ?? 0) + it.quantity
+      }
+      const itemLines = Object.entries(agg).map(([pid, qty]) => {
+        const p = productMap[pid]
+        return `  • ${qty}× ${p?.name ?? '?'}${p?.size ? ` ${p.size}` : ''}`
       }).join('\n')
 
       let msg = `📦 Order #${order.id.slice(-6).toUpperCase()}\n`
@@ -413,18 +414,18 @@ async function handleDriverLocation(chatId: number, telegramId: string, driver: 
       warehouseLine = `🏭 Pick up from: ${nearest.name}\n📍 ${nearest.address}`
     }
 
-    // Items checklist + earnings
-    const { data: items } = await supabaseAdmin.from('order_items').select('variant_id,quantity,unit_price_sell,unit_price_cost').eq('order_id', orderId)
-    const variantIds = (items ?? []).map((i: { variant_id: string }) => i.variant_id)
-    const { data: variants } = variantIds.length ? await supabaseAdmin.from('variants').select('id,product_id,size').in('id', variantIds) : { data: [] }
-    const productIds = Array.from(new Set((variants ?? []).map((v: { product_id: string }) => v.product_id)))
-    const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name').in('id', productIds) : { data: [] }
-    const variantMap = Object.fromEntries((variants ?? []).map((v: { id: string; product_id: string; size: string }) => [v.id, v]))
-    const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string }) => [p.id, p.name]))
-    const itemLines = (items ?? []).map((i: { quantity: number; variant_id: string }) => {
-      const v = variantMap[i.variant_id]
-      const name = v ? (productMap[v.product_id] ?? '?') : '?'
-      return `  ☐ ${i.quantity}× ${name}${(v as { size?: string })?.size ? ` ${(v as { size: string }).size}` : ''}`
+    // Items checklist + earnings (aggregate per product since FIFO may split)
+    const { data: items } = await supabaseAdmin.from('order_items').select('product_id,quantity,unit_price_sell,unit_price_cost').eq('order_id', orderId)
+    const agg: Record<string, number> = {}
+    for (const it of (items ?? []) as { product_id: string; quantity: number }[]) {
+      agg[it.product_id] = (agg[it.product_id] ?? 0) + it.quantity
+    }
+    const productIds = Object.keys(agg)
+    const { data: products } = productIds.length ? await supabaseAdmin.from('products').select('id,name,size').in('id', productIds) : { data: [] }
+    const productMap = Object.fromEntries((products ?? []).map((p: { id: string; name: string; size: string | null }) => [p.id, p]))
+    const itemLines = Object.entries(agg).map(([pid, qty]) => {
+      const p = productMap[pid]
+      return `  ☐ ${qty}× ${p?.name ?? '?'}${p?.size ? ` ${p.size}` : ''}`
     }).join('\n')
 
     const earnings = await calcOrderEarnings(orderId, order.delivery_fee)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Order, OrderItem, Variant, OrderStatus } from '@/types'
+import type { Order, OrderItem, OrderStatus } from '@/types'
 import Dialog from '@/components/ui/Dialog'
 
 interface StatusHistoryRow {
@@ -11,9 +11,9 @@ interface StatusHistoryRow {
   changed_at: string
 }
 
-interface OrderItemWithVariant extends OrderItem {
-  variant: Variant | null
+interface OrderItemWithProduct extends OrderItem {
   productName: string
+  productSize: string | null
 }
 
 interface PartnerInfo {
@@ -25,7 +25,7 @@ interface PartnerInfo {
 interface OrderWithItems extends Order {
   driver_name: string | null
   partner: PartnerInfo | null
-  items: OrderItemWithVariant[]
+  items: OrderItemWithProduct[]
   history: StatusHistoryRow[]
 }
 
@@ -167,7 +167,7 @@ function OrderCard({
                     className="w-4 h-4 accent-blue-600 shrink-0"
                   />
                   <span className={`text-xs transition-colors ${checkedItems[item.id] ? 'line-through text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300'}`}>
-                    {item.quantity}× {item.productName} {item.variant?.size ?? ''}
+                    {item.quantity}× {item.productName} {item.productSize ?? ''}
                   </span>
                   <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">${Number(item.line_total).toFixed(2)}</span>
                 </label>

@@ -26,16 +26,13 @@ interface CatalogueCategory {
     brand: string | null
     subcategory: string | null
     category_id: string
+    size: string | null
+    price_sell: number
+    price_cost: number
+    stock_qty: number
+    low_stock_threshold: number
+    barcode: string | null
     is_active: boolean
-    variants: Array<{
-      id: string
-      product_id: string
-      size: string
-      price_sell: number
-      price_cost: number
-      stock_qty: number
-      is_active: boolean
-    }>
   }>
 }
 
@@ -132,7 +129,7 @@ function OrderApp() {
           notes: notes || null,
           scheduled_at: scheduledAt ?? null,
           items: cart.items.map((i) => ({
-            variant_id: i.variantId,
+            product_id: i.productId,
             quantity: i.quantity,
           })),
         }),

@@ -1,10 +1,9 @@
-import type { Variant, Product } from '@/types'
+import type { Product } from '@/types'
 
 export interface CartItem {
-  variantId: string
   productId: string
   productName: string
-  size: string
+  size: string | null
   priceSell: number
   quantity: number
 }
@@ -14,13 +13,13 @@ export interface Cart {
   qrSlug: string
 }
 
-export function addToCart(cart: Cart, variant: Variant, product: Product): Cart {
-  const existing = cart.items.find((i) => i.variantId === variant.id)
+export function addToCart(cart: Cart, product: Product): Cart {
+  const existing = cart.items.find((i) => i.productId === product.id)
   if (existing) {
     return {
       ...cart,
       items: cart.items.map((i) =>
-        i.variantId === variant.id ? { ...i, quantity: i.quantity + 1 } : i
+        i.productId === product.id ? { ...i, quantity: i.quantity + 1 } : i
       ),
     }
   }
@@ -29,29 +28,28 @@ export function addToCart(cart: Cart, variant: Variant, product: Product): Cart 
     items: [
       ...cart.items,
       {
-        variantId: variant.id,
         productId: product.id,
         productName: product.name,
-        size: variant.size,
-        priceSell: Number(variant.price_sell),
+        size: product.size,
+        priceSell: Number(product.price_sell),
         quantity: 1,
       },
     ],
   }
 }
 
-export function removeFromCart(cart: Cart, variantId: string): Cart {
+export function removeFromCart(cart: Cart, productId: string): Cart {
   return {
     ...cart,
-    items: cart.items.filter((i) => i.variantId !== variantId),
+    items: cart.items.filter((i) => i.productId !== productId),
   }
 }
 
-export function updateQuantity(cart: Cart, variantId: string, quantity: number): Cart {
-  if (quantity <= 0) return removeFromCart(cart, variantId)
+export function updateQuantity(cart: Cart, productId: string, quantity: number): Cart {
+  if (quantity <= 0) return removeFromCart(cart, productId)
   return {
     ...cart,
-    items: cart.items.map((i) => (i.variantId === variantId ? { ...i, quantity } : i)),
+    items: cart.items.map((i) => (i.productId === productId ? { ...i, quantity } : i)),
   }
 }
 
