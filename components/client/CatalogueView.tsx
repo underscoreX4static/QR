@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { Category, Product } from '@/types'
 import type { Cart } from '@/lib/cart'
 import { addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } from '@/lib/cart'
@@ -31,6 +31,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
   const [sort, setSort] = useState<SortOption>('default')
   const [activeBrand, setActiveBrand] = useState<string>('all')
   const [openProduct, setOpenProduct] = useState<Product | null>(null)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   // Flatten all products across categories
   const allProducts = useMemo(() =>
@@ -72,6 +73,12 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
       setActiveBrand('all')
     }
   }, [activeBrand, brands])
+
+  // Reset scroll to the top of the product grid whenever the customer changes
+  // category or brand — otherwise they land mid-scroll in the previous list.
+  useEffect(() => {
+    gridRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+  }, [activeCategory, activeBrand])
 
   // Filter + sort
   const filtered = useMemo(() => {
@@ -233,7 +240,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
       </div>
 
       {/* ── Product grid ── */}
-      <div className="flex-1 overflow-y-auto px-3 py-3 pb-28">
+      <div ref={gridRef} className="flex-1 overflow-y-auto px-3 py-3 pb-28">
 
         {/* Results count + clear */}
         <div className="flex items-center justify-between mb-3">
