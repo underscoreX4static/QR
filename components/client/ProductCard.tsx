@@ -7,15 +7,27 @@ interface Props {
   product: Product
   cart: Cart
   onAdd: (product: Product) => void
+  onOpen: (product: Product) => void
 }
 
-export default function ProductCard({ product, cart, onAdd }: Props) {
+export default function ProductCard({ product, cart, onAdd, onOpen }: Props) {
   const inStock = product.stock_qty > 0
   const inCart = cart.items.find((i) => i.productId === product.id)
   const qty = inCart?.quantity ?? 0
 
+  // The Add button is its own clickable target — stop the click from bubbling
+  // up so it doesn't also open the detail modal.
+  const stopAndAdd = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (inStock) onAdd(product)
+  }
+
   return (
-    <div className={`bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col ${!inStock ? 'opacity-60' : ''}`}>
+    <button
+      type="button"
+      onClick={() => onOpen(product)}
+      className={`bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col text-left active:scale-[0.98] transition-transform ${!inStock ? 'opacity-60' : ''}`}
+    >
       {/* Image */}
       <div className="relative w-full aspect-square bg-gray-100">
         {product.image_url ? (
@@ -58,15 +70,20 @@ export default function ProductCard({ product, cart, onAdd }: Props) {
           <span className="font-bold text-gray-900 text-sm">
             ${Number(product.price_sell).toFixed(2)}
           </span>
-          <button
-            onClick={() => onAdd(product)}
-            disabled={!inStock}
-            className="bg-blue-600 text-white rounded-xl px-3 py-1.5 text-sm font-semibold active:scale-95 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+          <span
+            onClick={stopAndAdd}
+            className={`rounded-xl px-3 py-1.5 text-sm font-semibold transition-transform select-none ${
+              inStock
+                ? 'bg-blue-600 text-white active:scale-95 cursor-pointer'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+            }`}
+            role="button"
+            aria-disabled={!inStock}
           >
             {qty > 0 ? `+1` : `Add`}
-          </button>
+          </span>
         </div>
       </div>
-    </div>
+    </button>
   )
 }

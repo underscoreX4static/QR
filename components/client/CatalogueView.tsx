@@ -3,8 +3,9 @@
 import { useState, useMemo, useEffect } from 'react'
 import type { Category, Product } from '@/types'
 import type { Cart } from '@/lib/cart'
-import { addToCart, cartCount, cartTotal } from '@/lib/cart'
+import { addToCart, removeFromCart, updateQuantity, cartCount, cartTotal } from '@/lib/cart'
 import ProductCard from './ProductCard'
+import ProductDetailModal from './ProductDetailModal'
 
 interface CatalogueCategory extends Category { products: Product[] }
 
@@ -29,6 +30,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<SortOption>('default')
   const [activeBrand, setActiveBrand] = useState<string>('all')
+  const [openProduct, setOpenProduct] = useState<Product | null>(null)
 
   // Flatten all products across categories
   const allProducts = useMemo(() =>
@@ -251,6 +253,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 product={product}
                 cart={cart}
                 onAdd={(p) => onCartChange(addToCart(cart, p))}
+                onOpen={(p) => setOpenProduct(p)}
               />
             ))}
           </div>
@@ -272,6 +275,31 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
           </button>
         </div>
       )}
+
+      {/* ── Product detail modal ── */}
+      {openProduct && (() => {
+        // Always render the freshest product from `allProducts` so that
+        // stock/price updates from background polling reflect in the modal
+        // without forcing the user to close + reopen.
+        const fresh = allProducts.find((p) => p.id === openProduct.id) ?? openProduct
+        return (
+          <ProductDetailModal
+            product={fresh}
+            cart={cart}
+            onClose={() => setOpenProduct(null)}
+            onAdd={(p) => onCartChange(addToCart(cart, p))}
+            onRemove={(p) => {
+              const item = cart.items.find((i) => i.productId === p.id)
+              if (!item) return
+              if (item.quantity <= 1) {
+                onCartChange(removeFromCart(cart, p.id))
+              } else {
+                onCartChange(updateQuantity(cart, p.id, item.quantity - 1))
+              }
+            }}
+          />
+        )
+      })()}
     </div>
   )
 }
