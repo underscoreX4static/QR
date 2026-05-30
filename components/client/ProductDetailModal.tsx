@@ -16,6 +16,7 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
   const inCart = cart.items.find((i) => i.productId === product.id)
   const qty = inCart?.quantity ?? 0
   const inStock = product.stock_qty > 0
+  const cartHasItems = cart.items.length > 0
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -28,6 +29,9 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
     <div
       className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center"
       onClick={onClose}
+      // Sit the modal above the cart bar — the bottom inset matches the
+      // cart bar height (~88px) when it is visible.
+      style={cartHasItems ? { paddingBottom: '88px' } : undefined}
     >
       <div
         className="bg-white w-full max-w-md rounded-t-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl animate-[slideUp_0.25s_ease-out]"

@@ -292,9 +292,10 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
         )}
       </div>
 
-      {/* ── Cart bar ── */}
+      {/* ── Cart bar ── kept above the product-detail modal so the user can
+            always jump to checkout while browsing details */}
       {count > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 pb-6 z-10">
+        <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 pb-6 z-[60]">
           <button
             onClick={onCheckout}
             className="w-full bg-blue-600 text-white rounded-2xl py-4 flex items-center justify-between px-5 shadow-lg active:scale-95 transition-transform"
