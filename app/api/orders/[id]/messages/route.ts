@@ -179,19 +179,15 @@ async function notifyPros(
 
   const truncated = text.length > 200 ? text.slice(0, 200) + '…' : text
   const msg = `📩 New message on #${shortId}\n\n"${truncated}"`
+  // callback_data is limited to 64 bytes; 6-char short id is plenty (we resolve
+  // back to the full order via ilike on the suffix).
   for (const r of recipients) {
     await sendMessage(Number(r.telegram_id), msg, {
       reply_markup: {
-        inline_keyboard: [[{ text: '💬 Reply', callback_data: `chat_reply:${order_short_or_full_id(shortId, recipients)}` }]],
+        inline_keyboard: [[{ text: '💬 Reply', callback_data: `chat_reply:${shortId}` }]],
       },
     }).catch(() => null)
   }
-}
-
-// Workaround: callback_data is limited to 64 bytes. Short ID (6 chars) is enough
-// to resolve back to the order on the bot side (we look it up by id endsWith).
-function order_short_or_full_id(shortId: string, _r: unknown[]): string {
-  return shortId
 }
 
 async function notifyCustomer(userId: string, shortId: string, text: string) {
