@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isStoreOpen, getNextOpenTime, getStoreHoursFromDB } from '@/lib/delivery'
+import { isStoreOpen, getNextOpenTime, getStoreHoursFromDB, getMinutesUntilStateChange } from '@/lib/delivery'
 import { buildSlots } from '@/lib/slots'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +18,7 @@ export async function GET() {
       { auth: { persistSession: false }, global: { fetch: (url, init) => fetch(url, { ...init, cache: 'no-store' }) } }
     )
 
-    const [{ data: orders, error }, weekHours, open, nextOpen] = await Promise.all([
+    const [{ data: orders, error }, weekHours, open, nextOpen, change] = await Promise.all([
       sb.from('orders')
         .select('scheduled_at')
         .not('scheduled_at', 'is', null)
@@ -27,6 +27,7 @@ export async function GET() {
       getStoreHoursFromDB(),
       isStoreOpen(now),
       getNextOpenTime(now),
+      getMinutesUntilStateChange(now),
     ])
 
     if (error) console.error('[slots] supabase error:', error)
@@ -34,7 +35,14 @@ export async function GET() {
     const taken = (orders ?? []).map((r: { scheduled_at: string }) => r.scheduled_at)
     const slots = buildSlots(now, weekHours, taken)
 
-    return NextResponse.json({ open, nextOpen, slots }, {
+    return NextResponse.json({
+      open,
+      nextOpen,
+      slots,
+      minutesUntilClose: change.minutesUntilClose,
+      minutesUntilOpen:  change.minutesUntilOpen,
+      forced:            change.forced,
+    }, {
       headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
     })
   } catch (err) {

@@ -204,3 +204,55 @@ export async function getNextOpenTime(now: Date = new Date()): Promise<string> {
   return 'soon'
 }
 
+// Returns minutes until the next state change.
+//   - If open: minutes until close (positive number, 0 if already past)
+//   - If closed and reopens later today: minutes until next open
+//   - If closed and reopens tomorrow: full minutes until tomorrow's open
+//
+// `force` is a manual override (settings.store_force_status). When set, we
+// can't reliably predict the next change → returns null.
+export async function getMinutesUntilStateChange(now: Date = new Date()): Promise<{
+  minutesUntilClose: number | null
+  minutesUntilOpen:  number | null
+  forced:            'open' | 'closed' | null
+}> {
+  const { supabaseAdmin } = await import('@/lib/supabase')
+  const { data } = await supabaseAdmin.from('settings').select('value').eq('key', 'store_force_status').single()
+  if (data?.value === 'open' || data?.value === 'closed') {
+    return { minutesUntilClose: null, minutesUntilOpen: null, forced: data.value }
+  }
+
+  const weekHours = await getStoreHoursFromDB()
+  const { weekday, hour, minute } = brisbaneComponents(now)
+  const { open, close } = getStoreHours(weekday, weekHours)
+  const brisHour = hour + minute / 60
+
+  if (brisHour >= open && brisHour < close) {
+    return {
+      minutesUntilClose: Math.max(0, Math.round((close - brisHour) * 60)),
+      minutesUntilOpen:  null,
+      forced:            null,
+    }
+  }
+
+  if (brisHour < open) {
+    return {
+      minutesUntilClose: null,
+      minutesUntilOpen:  Math.max(0, Math.round((open - brisHour) * 60)),
+      forced:            null,
+    }
+  }
+
+  // After close: minutes until tomorrow's open time
+  const tomorrowWeekday = (weekday + 1) % 7
+  const tomorrowOpen = getStoreHours(tomorrowWeekday, weekHours).open
+  // Hours from now until midnight + hours from midnight until tomorrow open
+  const minutesUntilMidnight = (24 - brisHour) * 60
+  const minutesFromMidnight = tomorrowOpen * 60
+  return {
+    minutesUntilClose: null,
+    minutesUntilOpen:  Math.max(0, Math.round(minutesUntilMidnight + minutesFromMidnight)),
+    forced:            null,
+  }
+}
+
