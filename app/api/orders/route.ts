@@ -158,18 +158,59 @@ export async function POST(req: NextRequest) {
     .returns<Pick<Driver, 'telegram_id'>[]>()
 
   const shortId = order.id.slice(-6).toUpperCase()
+
+  // ── Build an itemised summary used in both customer and owner messages ────
+  // Aggregate FIFO lines back per product so a single line is shown even when
+  // a product was split across multiple batches.
+  const productAgg: Record<string, { qty: number; total: number }> = {}
+  for (const l of allLines) {
+    const acc = productAgg[l.product_id] ?? { qty: 0, total: 0 }
+    acc.qty += l.quantity
+    acc.total += l.line_total
+    productAgg[l.product_id] = acc
+  }
+  const productInfoMap = Object.fromEntries(
+    (products ?? []).map((p) => [p.id, { name: p.name, size: p.size }])
+  )
+  const itemLines = Object.entries(productAgg).map(([pid, v]) => {
+    const info = productInfoMap[pid]
+    const name = info?.name ?? 'Item'
+    const size = info?.size ? ` ${info.size}` : ''
+    return `  • ${v.qty}× ${name}${size} — $${v.total.toFixed(2)}`
+  }).join('\n')
+
+  // Cash to keep in pocket after deducting the cost of goods sold
+  const totalCost = allLines.reduce((s, l) => s + l.unit_price_cost * l.quantity, 0)
+  const cashInPocket = Number(order.total) - totalCost
+
   const scheduleNote = scheduled_at
-    ? `\n🕐 Scheduled: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
-    : '\n⚡ ASAP'
-  const ownerMsg = `🆕 New order #${shortId}\n📍 ${order.delivery_address}\n💵 $${Number(order.total).toFixed(2)}${scheduleNote}`
+    ? `🕐 Scheduled: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
+    : '⚡ ASAP'
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+  const chatUrl = appUrl ? `${appUrl}/chat?order=${order.id}` : null
+
+  // ── Owner notification: full detail + financials + action buttons ─────────
+  let ownerMsg = `🆕 New order #${shortId}\n`
+  ownerMsg += `${scheduleNote}\n\n`
+  ownerMsg += `📍 ${order.delivery_address}\n\n`
+  ownerMsg += `📦 Items:\n${itemLines}\n\n`
+  ownerMsg += `💵 Customer pays: $${Number(order.total).toFixed(2)}\n`
+  if (deliveryFee > 0) ownerMsg += `   ↳ delivery $${deliveryFee.toFixed(2)}\n`
+  if (discount > 0)    ownerMsg += `   ↳ discount −$${discount.toFixed(2)}\n`
+  ownerMsg += `💰 In your pocket: $${cashInPocket.toFixed(2)} (after $${totalCost.toFixed(2)} cost)`
+
+  const ownerKeyboard = [
+    [
+      { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
+      { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
+    ],
+    ...(chatUrl ? [[{ text: '💬 Chat with customer', callback_data: `chat_reply:${shortId}` }]] : []),
+  ]
+
   const ownerResults = await Promise.allSettled(
     (owners ?? []).map((o) => sendMessage(Number(o.telegram_id), ownerMsg, {
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
-          { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
-        ]],
-      },
+      reply_markup: { inline_keyboard: ownerKeyboard },
     }))
   )
 
@@ -184,12 +225,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Notify customer
-  const scheduleCustomerNote = scheduled_at
-    ? `\n🕐 Scheduled for: ${new Date(scheduled_at).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', dateStyle: 'short', timeStyle: 'short' })}`
-    : '\n⚡ ASAP delivery'
-  const customerMsg = `🛒 Order received! #${shortId}\n💵 $${Number(order.total).toFixed(2)} cash on delivery${scheduleCustomerNote}\n\nWe'll confirm your order shortly.`
-  await sendMessage(Number(telegram_id), customerMsg).catch(() => null)
+  // ── Customer notification: full recap + permanent chat link ──────────────
+  let customerMsg = `🛒 Order received! #${shortId}\n`
+  customerMsg += `${scheduleNote}\n\n`
+  customerMsg += `📍 ${order.delivery_address}\n\n`
+  customerMsg += `📦 Your items:\n${itemLines}\n\n`
+  customerMsg += `💵 Total: $${Number(order.total).toFixed(2)} cash on delivery`
+  if (deliveryFee > 0) customerMsg += `\n   ↳ delivery $${deliveryFee.toFixed(2)}`
+  if (discount > 0)    customerMsg += `\n   ↳ discount −$${discount.toFixed(2)}`
+  customerMsg += `\n\nWe'll confirm shortly. Need to reach us? Tap the chat below 👇`
+
+  const customerKeyboard = chatUrl
+    ? { inline_keyboard: [[{ text: '💬 Chat with delivery', web_app: { url: chatUrl } }]] }
+    : undefined
+
+  await sendMessage(
+    Number(telegram_id),
+    customerMsg,
+    customerKeyboard ? { reply_markup: customerKeyboard } : undefined,
+  ).catch(() => null)
 
   return NextResponse.json({ order }, { status: 201 })
 }
