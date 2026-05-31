@@ -284,7 +284,7 @@ export default function CartView({
         {step === 'cart' && (
           <>
             {cart.items.length === 0 ? (
-              <p className="text-center text-gray-400 mt-12">Your cart is empty</p>
+              <p className="text-center text-gray-500 mt-12">Your cart is empty</p>
             ) : (
               <>
                 <div className="bg-white rounded-2xl divide-y divide-gray-50 shadow-sm">
@@ -292,7 +292,7 @@ export default function CartView({
                     <div key={item.productId} className="flex items-center justify-between px-4 py-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm truncate">{item.productName}</p>
-                        <p className="text-xs text-gray-500">{item.size}</p>
+                        <p className="text-xs text-gray-600">{item.size}</p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="flex items-center gap-2">
@@ -357,7 +357,7 @@ export default function CartView({
                 )}
 
                 <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
-                  <div className="flex justify-between text-sm text-gray-500">
+                  <div className="flex justify-between text-sm text-gray-700">
                     <span>Subtotal</span><span>${subtotal.toFixed(2)}</span>
                   </div>
                   {hasDiscount && (
@@ -365,7 +365,7 @@ export default function CartView({
                       <span>10% discount</span><span>−${discount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm text-gray-500">
+                  <div className="flex justify-between text-sm text-gray-700">
                     <span>Delivery</span>
                     {isFreeDelivery
                       ? <span className="text-green-600 font-semibold">FREE</span>
@@ -409,13 +409,13 @@ export default function CartView({
         {step === 'address' && (
           <div className="space-y-3">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Street address *</label>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Street address *</label>
               <input
                 value={street}
                 onChange={(e) => { setStreet(e.target.value); setStreetTouched(true) }}
                 onBlur={() => setStreetTouched(true)}
                 placeholder="e.g. 42 Queen Street"
-                className={`w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full border rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   streetTouched && street.trim() && !isValidStreet
                     ? 'border-red-400 bg-red-50'
                     : 'border-gray-200'
@@ -427,7 +427,7 @@ export default function CartView({
             </div>
 
             <div className="relative">
-              <label className="block text-sm text-gray-600 mb-1">Suburb *</label>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Suburb *</label>
               <input
                 value={selectedSuburb ? `${selectedSuburb.suburb} (${selectedSuburb.postcode})` : suburbInput}
                 onChange={(e) => {
@@ -435,7 +435,7 @@ export default function CartView({
                   setSuburbInput(e.target.value)
                 }}
                 placeholder="Type suburb or postcode..."
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {suburbSuggestions.length > 0 && !selectedSuburb && (
                 <div className="absolute z-10 left-0 right-0 bg-white border border-gray-200 rounded-xl mt-1 shadow-lg overflow-hidden">
@@ -451,7 +451,7 @@ export default function CartView({
                       className="w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between"
                     >
                       <span className="font-medium text-gray-900">{s.suburb}</span>
-                      <span className="text-gray-400 text-xs">{s.postcode}</span>
+                      <span className="text-gray-600 text-xs">{s.postcode}</span>
                     </button>
                   ))}
                 </div>
@@ -464,23 +464,23 @@ export default function CartView({
             </div>
 
             {selectedSuburb && (
-              <div className="bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-500 flex items-center justify-between">
+              <div className="bg-gray-50 rounded-xl px-3 py-2 text-xs text-gray-700 flex items-center justify-between">
                 <span>📍 {selectedSuburb.suburb} QLD {selectedSuburb.postcode}</span>
                 <button
                   onClick={() => setSelectedSuburb(null)}
-                  className="text-gray-400 hover:text-gray-600 ml-2"
+                  className="text-gray-500 hover:text-gray-700 ml-2"
                 >✕</button>
               </div>
             )}
 
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Notes (optional)</label>
+              <label className="block text-sm font-medium text-gray-800 mb-1">Notes (optional)</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Buzzer code, gate, leave at door..."
                 rows={2}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
               />
             </div>
 
@@ -496,7 +496,7 @@ export default function CartView({
               <div className={`rounded-2xl border-2 p-4 transition-all ${
                 addressConfirmed ? 'border-green-500 bg-green-50' : 'border-blue-200 bg-blue-50'
               }`}>
-                <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Delivery address</p>
+                <p className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Delivery address</p>
                 <p className="text-sm font-semibold text-gray-900 mb-3">{fullAddress}</p>
                 {!addressConfirmed ? (
                   <button
@@ -544,7 +544,7 @@ export default function CartView({
                   <span className="text-2xl">⚡</span>
                   <div>
                     <p className="font-semibold text-gray-900">As soon as possible</p>
-                    <p className="text-xs text-gray-500 mt-0.5">No guaranteed time — we&apos;ll get there as fast as we can</p>
+                    <p className="text-xs text-gray-600 mt-0.5">No guaranteed time — we&apos;ll get there as fast as we can</p>
                   </div>
                 </div>
               </button>
@@ -561,7 +561,7 @@ export default function CartView({
                 <span className="text-2xl">🗓️</span>
                 <div>
                   <p className="font-semibold text-gray-900">Schedule for later</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Choose a time — today only</p>
+                  <p className="text-xs text-gray-600 mt-0.5">Choose a time — today only</p>
                 </div>
               </div>
             </button>
@@ -570,7 +570,7 @@ export default function CartView({
             {deliveryType === 'scheduled' && (
               <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
                 {slots.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-gray-400">No slots available today</p>
+                  <p className="px-4 py-6 text-center text-sm text-gray-500">No slots available today</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-px bg-gray-100">
                     {slots.map((slot) => (
@@ -669,7 +669,7 @@ export default function CartView({
               </div>
               {cart.items.map((item) => (
                 <div key={item.productId} className="flex justify-between px-4 py-2.5 text-sm border-b border-gray-50">
-                  <span className="text-gray-700">{item.quantity}× {item.productName} <span className="text-gray-400">{item.size}</span></span>
+                  <span className="text-gray-800">{item.quantity}× {item.productName} <span className="text-gray-500">{item.size}</span></span>
                   <span className="font-medium">${(preview?.perProduct[item.productId]?.total ?? item.priceSell * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
@@ -697,23 +697,23 @@ export default function CartView({
             {/* Delivery info */}
             <div className="bg-white rounded-2xl shadow-sm p-4 space-y-2 text-sm">
               <div className="flex items-start gap-2">
-                <span className="text-gray-400 shrink-0">📍</span>
+                <span className="text-gray-500 shrink-0">📍</span>
                 <span className="text-gray-700">{fullAddress}</span>
               </div>
               {notes && (
                 <div className="flex items-start gap-2">
-                  <span className="text-gray-400 shrink-0">💬</span>
+                  <span className="text-gray-500 shrink-0">💬</span>
                   <span className="text-gray-700">{notes}</span>
                 </div>
               )}
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 shrink-0">{deliveryType === 'asap' ? '⚡' : '🗓️'}</span>
+                <span className="text-gray-500 shrink-0">{deliveryType === 'asap' ? '⚡' : '🗓️'}</span>
                 <span className="text-gray-700">
                   {deliveryType === 'asap' ? 'As soon as possible' : selectedSlot?.label}
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-gray-400 shrink-0">💵</span>
+                <span className="text-gray-500 shrink-0">💵</span>
                 <span className="text-gray-700 font-medium">Cash ${total.toFixed(2)} on delivery</span>
               </div>
             </div>

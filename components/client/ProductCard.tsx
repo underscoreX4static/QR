@@ -70,7 +70,7 @@ export default function ProductCard({ product, cart, onAdd, onRemove, onOpen }: 
           className="flex-1 text-left active:opacity-80 transition-opacity"
         >
           <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{product.name}</p>
-          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-400">
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-gray-600">
             {product.brand && <span>{product.brand}</span>}
             {product.brand && product.size && <span>·</span>}
             {product.size && <span>{product.size}</span>}

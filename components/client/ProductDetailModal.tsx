@@ -77,7 +77,7 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
             <div>
               <h2 className="font-bold text-gray-900 text-xl leading-tight">{product.name}</h2>
               {product.size && (
-                <p className="text-sm text-gray-500 mt-0.5">{product.size}</p>
+                <p className="text-sm text-gray-700 mt-0.5">{product.size}</p>
               )}
             </div>
 
@@ -105,7 +105,7 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
             {/* Description */}
             {product.description && (
               <div className="pt-2">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">About</p>
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">About</p>
                 <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{product.description}</p>
               </div>
             )}
@@ -116,7 +116,7 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
         <div className="shrink-0 border-t border-gray-100 px-5 py-3 pb-6 bg-white">
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <p className="text-xs text-gray-400">Price</p>
+              <p className="text-xs text-gray-600">Price</p>
               <p className="text-2xl font-bold text-gray-900 leading-none">${Number(product.price_sell).toFixed(2)}</p>
             </div>
 

@@ -179,7 +179,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search products, brands…"
-              className="w-full bg-gray-100 rounded-xl pl-9 pr-9 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full bg-gray-100 rounded-xl pl-9 pr-9 py-2.5 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             {search && (
               <button
@@ -229,7 +229,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
               className={`appearance-none text-[11px] font-medium rounded-full px-3 py-1 pr-6 border focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
                 sort !== 'default'
                   ? 'bg-blue-50 border-blue-300 text-blue-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-500'
+                  : 'bg-gray-50 border-gray-200 text-gray-700'
               }`}
             >
               {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => (
@@ -248,7 +248,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                 className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${
                   activeBrand === 'all'
                     ? 'bg-gray-800 text-white'
-                    : 'bg-gray-50 text-gray-500 border border-gray-200'
+                    : 'bg-gray-50 text-gray-700 border border-gray-200'
                 }`}
               >
                 All brands
@@ -260,7 +260,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
                   className={`flex-shrink-0 px-3 py-1 rounded-full text-[11px] font-medium transition-colors ${
                     activeBrand === brand
                       ? 'bg-gray-800 text-white'
-                      : 'bg-gray-50 text-gray-500 border border-gray-200'
+                      : 'bg-gray-50 text-gray-700 border border-gray-200'
                   }`}
                 >
                   {brand}
@@ -281,7 +281,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
 
         {/* Results count + clear */}
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             {filtered.length} product{filtered.length !== 1 ? 's' : ''}
           </p>
           {isFiltering && (
@@ -297,7 +297,7 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <span className="text-4xl">🔍</span>
-            <p className="text-sm text-gray-400 text-center">No products found</p>
+            <p className="text-sm text-gray-500 text-center">No products found</p>
             {isFiltering && (
               <button onClick={clearFilters} className="text-sm text-blue-600 font-medium">
                 Clear filters

@@ -78,15 +78,18 @@ async function handleChatReply(
     return
   }
 
-  // Find the order by short id (6-char suffix, uppercase in messages but DB is lowercase)
+  // Find the order by short id (6-char suffix of the uuid).
+  // ilike does not work against uuid columns, so we pull the most recent
+  // orders and match in JS — cheap enough for a single Telegram reply.
   const suffix = shortOrFullId.toLowerCase()
-  const { data: order } = await supabaseAdmin
+  const { data: recent } = await supabaseAdmin
     .from('orders')
     .select('id,user_id,driver_id,status,updated_at')
-    .ilike('id', `%${suffix}`)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }>()
+    .limit(200)
+    .returns<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }[]>()
+
+  const order = (recent ?? []).find((o) => o.id.toLowerCase().endsWith(suffix)) ?? null
 
   if (!order) {
     await sendMessage(chatId, `⚠️ Couldn't find order #${shortOrFullId}.`)
