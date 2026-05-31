@@ -38,7 +38,7 @@ export default async function QRPage() {
           />
         ))}
         {qrWithPartner.length === 0 && (
-          <p className="col-span-2 text-center text-gray-400 py-8">No QR codes yet</p>
+          <p className="col-span-2 text-center text-gray-500 py-8">No QR codes yet</p>
         )}
       </div>
     </div>

@@ -28,9 +28,9 @@ export default function PartnersPage() {
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {loading ? (
-            <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+            <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
           ) : partners.length === 0 ? (
-            <p className="px-4 py-8 text-center text-gray-400">No partners yet</p>
+            <p className="px-4 py-8 text-center text-gray-500">No partners yet</p>
           ) : partners.map((p) => (
             <div key={p.id} className="p-4 space-y-1">
               <div className="flex items-center justify-between gap-2">

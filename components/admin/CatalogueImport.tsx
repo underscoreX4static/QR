@@ -143,7 +143,7 @@ export default function CatalogueImport() {
             <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-gray-100">Import CSV</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Bulk-create products & initial batches</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">Bulk-create products & initial batches</p>
               </div>
               <button onClick={() => { setOpen(false); reset() }} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
@@ -194,7 +194,7 @@ export default function CatalogueImport() {
                   {/* Preview */}
                   {rows.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300 mb-2">
                         Preview ({rows.length} row{rows.length > 1 ? 's' : ''})
                       </p>
                       <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
@@ -202,22 +202,22 @@ export default function CatalogueImport() {
                           <table className="w-full text-xs">
                             <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
                               <tr>
-                                <th className="px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap">#</th>
-                                <th className="px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap">Category</th>
-                                <th className="px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap">Name</th>
-                                <th className="px-2 py-1.5 text-left text-gray-500 font-semibold whitespace-nowrap">Size</th>
-                                <th className="px-2 py-1.5 text-right text-gray-500 font-semibold whitespace-nowrap">Qty</th>
-                                <th className="px-2 py-1.5 text-right text-gray-500 font-semibold whitespace-nowrap">Cost</th>
-                                <th className="px-2 py-1.5 text-right text-gray-500 font-semibold whitespace-nowrap">Sell</th>
+                                <th className="px-2 py-1.5 text-left text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">#</th>
+                                <th className="px-2 py-1.5 text-left text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Category</th>
+                                <th className="px-2 py-1.5 text-left text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Name</th>
+                                <th className="px-2 py-1.5 text-left text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Size</th>
+                                <th className="px-2 py-1.5 text-right text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Qty</th>
+                                <th className="px-2 py-1.5 text-right text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Cost</th>
+                                <th className="px-2 py-1.5 text-right text-gray-700 dark:text-gray-300 font-semibold whitespace-nowrap">Sell</th>
                               </tr>
                             </thead>
                             <tbody>
                               {rows.slice(0, 50).map((r, i) => (
                                 <tr key={i} className="border-t border-gray-100 dark:border-gray-800">
-                                  <td className="px-2 py-1 text-gray-400">{i + 1}</td>
+                                  <td className="px-2 py-1 text-gray-600 dark:text-gray-400">{i + 1}</td>
                                   <td className="px-2 py-1 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.category_name}</td>
                                   <td className="px-2 py-1 text-gray-900 dark:text-gray-100 font-medium whitespace-nowrap">{r.name}</td>
-                                  <td className="px-2 py-1 text-gray-500 whitespace-nowrap">{r.size ?? '—'}</td>
+                                  <td className="px-2 py-1 text-gray-700 dark:text-gray-300 whitespace-nowrap">{r.size ?? '—'}</td>
                                   <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">{r.batch_quantity ?? '—'}</td>
                                   <td className="px-2 py-1 text-right text-gray-700 dark:text-gray-300">{r.batch_price_cost ?? '—'}</td>
                                   <td className="px-2 py-1 text-right text-gray-900 dark:text-gray-100 font-semibold">{r.batch_price_sell ?? '—'}</td>
@@ -227,7 +227,7 @@ export default function CatalogueImport() {
                           </table>
                         </div>
                         {rows.length > 50 && (
-                          <p className="text-xs text-gray-400 text-center py-2 border-t border-gray-100 dark:border-gray-800">
+                          <p className="text-xs text-gray-600 dark:text-gray-400 text-center py-2 border-t border-gray-100 dark:border-gray-800">
                             …and {rows.length - 50} more rows
                           </p>
                         )}
@@ -238,7 +238,7 @@ export default function CatalogueImport() {
                   {/* Mode */}
                   {rows.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
                         If a product already exists (same category + name)
                       </p>
                       <label className="flex items-start gap-2 p-3 border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -337,7 +337,7 @@ function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3 text-center">
       <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+      <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>
     </div>
   )
 }

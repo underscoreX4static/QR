@@ -153,7 +153,7 @@ export default function SettingsPage() {
         </div>
 
         {loading ? (
-          <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+          <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
         ) : (
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {Object.keys(hours).map((day) => {

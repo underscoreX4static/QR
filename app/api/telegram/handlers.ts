@@ -78,21 +78,34 @@ async function handleChatReply(
     return
   }
 
-  // Find the order by short id (6-char suffix of the uuid).
-  // ilike does not work against uuid columns, so we pull the most recent
-  // orders and match in JS — cheap enough for a single Telegram reply.
-  const suffix = shortOrFullId.toLowerCase()
-  const { data: recent } = await supabaseAdmin
-    .from('orders')
-    .select('id,user_id,driver_id,status,updated_at')
-    .order('created_at', { ascending: false })
-    .limit(200)
-    .returns<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }[]>()
+  // Resolve the order — `shortOrFullId` is now always a full uuid (we embed it
+  // in the callback_data), but we keep the short-id fallback for compatibility
+  // with notifications sent before this change.
+  const isUuid = /^[0-9a-f-]{36}$/i.test(shortOrFullId)
+  let order: { id: string; user_id: string; driver_id: string | null; status: string; updated_at: string } | null = null
 
-  const order = (recent ?? []).find((o) => o.id.toLowerCase().endsWith(suffix)) ?? null
+  if (isUuid) {
+    const { data } = await supabaseAdmin
+      .from('orders')
+      .select('id,user_id,driver_id,status,updated_at')
+      .eq('id', shortOrFullId)
+      .maybeSingle<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }>()
+    order = data ?? null
+  } else {
+    // Legacy callback_data (6-char suffix). Fetch recent orders and match in JS.
+    const suffix = shortOrFullId.toLowerCase()
+    const { data: recent } = await supabaseAdmin
+      .from('orders')
+      .select('id,user_id,driver_id,status,updated_at')
+      .order('created_at', { ascending: false })
+      .limit(200)
+      .returns<{ id: string; user_id: string; driver_id: string | null; status: string; updated_at: string }[]>()
+    order = (recent ?? []).find((o) => o.id.toLowerCase().endsWith(suffix)) ?? null
+  }
 
   if (!order) {
-    await sendMessage(chatId, `⚠️ Couldn't find order #${shortOrFullId}.`)
+    const display = isUuid ? shortOrFullId.slice(-6).toUpperCase() : shortOrFullId
+    await sendMessage(chatId, `⚠️ Couldn't find order #${display}.`)
     return
   }
 
@@ -114,17 +127,19 @@ async function handleChatReply(
     return
   }
 
+  const shortIdForDisplay = order.id.slice(-6).toUpperCase()
+
   // Notify the customer
   const { data: u } = await supabaseAdmin
     .from('users').select('telegram_id').eq('id', order.user_id).maybeSingle<{ telegram_id: string }>()
   if (u?.telegram_id) {
     const truncated = text.length > 200 ? text.slice(0, 200) + '…' : text
     await sendMessage(Number(u.telegram_id),
-      `📩 Reply from delivery on order #${shortOrFullId.toUpperCase()}:\n\n"${truncated}"\n\nOpen the app to continue the chat.`
+      `📩 Reply from delivery on order #${shortIdForDisplay}:\n\n"${truncated}"\n\nOpen the app to continue the chat.`
     ).catch(() => null)
   }
 
-  await sendMessage(chatId, `✅ Reply sent to customer (#${shortOrFullId.toUpperCase()}).`)
+  await sendMessage(chatId, `✅ Reply sent to customer (#${shortIdForDisplay}).`)
 }
 
 async function handleStart(chatId: number, telegramId: string, from: TelegramBot.User, rawText: string) {
@@ -249,8 +264,12 @@ async function handleCallbackQuery(query: TelegramBot.CallbackQuery) {
       updated_by: 'system',
     })
 
+    // Display the short id (6-char suffix) since the user knows orders by that
+    const displayId = /^[0-9a-f-]{36}$/i.test(shortOrFullId)
+      ? shortOrFullId.slice(-6).toUpperCase()
+      : shortOrFullId.toUpperCase()
     await sendMessage(chatId,
-      `💬 Type your reply for order #${shortOrFullId.toUpperCase()}.\n(Send /cancel to abort.)`
+      `💬 Type your reply for order #${displayId}.\n(Send /cancel to abort.)`
     )
     return
   }

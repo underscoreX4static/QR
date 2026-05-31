@@ -50,9 +50,9 @@ export default function SettlementsPage() {
       <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {loading ? (
-            <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+            <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
           ) : settlements.length === 0 ? (
-            <p className="px-4 py-8 text-center text-gray-400">No settlements yet</p>
+            <p className="px-4 py-8 text-center text-gray-500">No settlements yet</p>
           ) : settlements.map((s) => (
             <div key={s.id} className="p-4 space-y-2">
               <div className="flex items-center justify-between gap-2">

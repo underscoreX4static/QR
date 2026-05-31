@@ -51,7 +51,7 @@ export default function AddPartnerForm({ onCreated }: { onCreated?: () => void }
                 { key: 'contact_phone', label: 'Phone', placeholder: '+1 555 000 0000' },
               ].map(({ key, label, placeholder }) => (
                 <div key={key}>
-                  <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{label}</label>
+                  <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{label}</label>
                   <input
                     required
                     placeholder={placeholder}

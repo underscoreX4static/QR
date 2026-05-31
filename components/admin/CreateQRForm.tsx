@@ -78,7 +78,7 @@ export default function CreateQRForm({ partners }: Props) {
             {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
             <form onSubmit={submit} className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Label</label>
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Label</label>
                 <input
                   required
                   placeholder="Ex: Table 5, Entrée principale..."
@@ -88,7 +88,7 @@ export default function CreateQRForm({ partners }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Partner <span className="text-gray-400 dark:text-gray-500">(optional)</span></label>
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Partner <span className="text-gray-500 dark:text-gray-500">(optional)</span></label>
                 <select
                   value={form.partner_id}
                   onChange={(e) => setForm({ ...form, partner_id: e.target.value })}

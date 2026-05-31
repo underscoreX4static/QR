@@ -108,7 +108,7 @@ function OrderCard({
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-wrap">
-          <span className="font-mono text-xs text-gray-400 shrink-0">#{order.id.slice(-6).toUpperCase()}</span>
+          <span className="font-mono text-xs text-gray-700 dark:text-gray-300 shrink-0">#{order.id.slice(-6).toUpperCase()}</span>
           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium shrink-0 ${STATUS_COLORS[order.status]}`}>
             {STATUS_LABELS[order.status]}
           </span>
@@ -128,7 +128,7 @@ function OrderCard({
       {/* Pickup location */}
       {order.partner && (
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400 shrink-0">📦 Pickup:</span>
+          <span className="text-xs text-gray-700 dark:text-gray-300 shrink-0">📦 Pickup:</span>
           <span className="text-xs font-medium text-gray-700 dark:text-gray-300 truncate">{order.partner.name} — {order.partner.address}</span>
           {showWaze && (
             <a
@@ -151,7 +151,7 @@ function OrderCard({
         <div>
           <button
             onClick={() => setShowChecklist((v) => !v)}
-            className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
           >
             <span>{showChecklist ? '▼' : '▶'}</span>
             <span>{order.items.length} item{order.items.length > 1 ? 's' : ''}</span>
@@ -174,7 +174,7 @@ function OrderCard({
                   <span className={`text-xs transition-colors ${checkedItems[item.id] ? 'line-through text-gray-400 dark:text-gray-600' : 'text-gray-700 dark:text-gray-300'}`}>
                     {item.quantity}× {item.productName} {item.productSize ?? ''}
                   </span>
-                  <span className="ml-auto text-xs text-gray-400 dark:text-gray-500">${Number(item.line_total).toFixed(2)}</span>
+                  <span className="ml-auto text-xs text-gray-600 dark:text-gray-400">${Number(item.line_total).toFixed(2)}</span>
                 </label>
               ))}
             </div>
@@ -182,13 +182,13 @@ function OrderCard({
         </div>
       )}
 
-      {order.notes && <p className="text-xs text-gray-400 dark:text-gray-500 italic">💬 {order.notes}</p>}
+      {order.notes && <p className="text-xs text-gray-600 dark:text-gray-400 italic">💬 {order.notes}</p>}
 
       {/* Status timeline */}
       {order.history?.length > 0 && (
         <div className="space-y-0.5">
           {order.history.map((h, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+            <div key={i} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
               <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_COLORS[h.status]?.split(' ')[0] ?? 'bg-gray-300'}`} />
               <span className="capitalize">{STATUS_LABELS[h.status] ?? h.status}</span>
               <span className="text-gray-300 dark:text-gray-600">·</span>
@@ -200,7 +200,7 @@ function OrderCard({
 
       {/* Footer: driver + actions */}
       <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-400 flex-wrap">
           <span>{fmt(order.created_at)}</span>
           {order.driver_name ? (
             <>
@@ -212,7 +212,7 @@ function OrderCard({
 
         <div className="flex flex-col items-end gap-2">
           {err && <p className="text-xs text-red-500">{err}</p>}
-          {order.status === 'cancelled' && <span className="text-xs text-red-400">Cancelled</span>}
+          {order.status === 'cancelled' && <span className="text-xs text-red-600 dark:text-red-400">Cancelled</span>}
           {order.status === 'delivered' && <span className="text-xs text-green-500">Delivered ✓</span>}
 
           {/* Chat button — always visible, badge shows unread count */}
@@ -234,7 +234,7 @@ function OrderCard({
               </span>
             )}
             {order.messages_unread_pro === 0 && order.messages_total > 0 && (
-              <span className="text-[10px] text-blue-600/70 dark:text-blue-400/70">{order.messages_total}</span>
+              <span className="text-[10px] text-blue-700 dark:text-blue-300">{order.messages_total}</span>
             )}
           </button>
 
@@ -367,9 +367,9 @@ export default function OrdersPage() {
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {loading ? (
-              <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+              <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
             ) : active.length === 0 ? (
-              <p className="px-4 py-8 text-center text-gray-400">No active orders</p>
+              <p className="px-4 py-8 text-center text-gray-500">No active orders</p>
             ) : active.map((order) => (
               <OrderCard
                 key={order.id}
@@ -400,7 +400,7 @@ export default function OrdersPage() {
           <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
             <div className="divide-y divide-gray-100 dark:divide-gray-800">
               {history.length === 0 ? (
-                <p className="px-4 py-8 text-center text-gray-400">No past orders</p>
+                <p className="px-4 py-8 text-center text-gray-500">No past orders</p>
               ) : history.map((order) => (
                 <OrderCard
                   key={order.id}

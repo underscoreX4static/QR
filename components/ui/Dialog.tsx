@@ -59,12 +59,12 @@ export default function Dialog({
       <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-sm shadow-xl p-6 space-y-4">
         <div>
           <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">{title}</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-line">{message}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line">{message}</p>
         </div>
 
         {variant === 'prompt' && (
           <div>
-            {promptLabel && <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">{promptLabel}</label>}
+            {promptLabel && <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">{promptLabel}</label>}
             <textarea
               ref={inputRef}
               rows={2}

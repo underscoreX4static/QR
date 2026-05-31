@@ -147,7 +147,7 @@ function isThreadClosed(order: { status: string; updated_at: string }): boolean 
 }
 
 async function notifyPros(
-  order: { driver_id: string | null; status: string },
+  order: { id: string; driver_id: string | null; status: string },
   shortId: string,
   text: string,
 ) {
@@ -179,12 +179,13 @@ async function notifyPros(
 
   const truncated = text.length > 200 ? text.slice(0, 200) + '…' : text
   const msg = `📩 New message on #${shortId}\n\n"${truncated}"`
-  // callback_data is limited to 64 bytes; 6-char short id is plenty (we resolve
-  // back to the full order via ilike on the suffix).
+  // callback_data is limited to 64 bytes — a uuid (36 chars) + the "chat_reply:"
+  // prefix (11 chars) = 47 bytes, well within bounds. Embed the full id so the
+  // bot can resolve the order directly without any DB lookup.
   for (const r of recipients) {
     await sendMessage(Number(r.telegram_id), msg, {
       reply_markup: {
-        inline_keyboard: [[{ text: '💬 Reply', callback_data: `chat_reply:${shortId}` }]],
+        inline_keyboard: [[{ text: '💬 Reply', callback_data: `chat_reply:${order.id}` }]],
       },
     }).catch(() => null)
   }

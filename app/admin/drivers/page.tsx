@@ -64,9 +64,9 @@ export default function DriversPage() {
         <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {loading ? (
-              <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+              <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
             ) : drivers.length === 0 ? (
-              <p className="px-4 py-8 text-center text-gray-400">No drivers yet</p>
+              <p className="px-4 py-8 text-center text-gray-500">No drivers yet</p>
             ) : drivers.map((driver) => (
               <div key={driver.id} className="p-4 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -82,7 +82,7 @@ export default function DriversPage() {
                       {driver.is_active ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">{driver.telegram_id}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 font-mono">{driver.telegram_id}</p>
                 </div>
                 <button
                   onClick={() => setPendingDelete({ id: driver.id, name: `${driver.first_name} ${driver.last_name ?? ''}`.trim() })}

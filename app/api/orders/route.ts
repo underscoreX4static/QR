@@ -205,7 +205,7 @@ export async function POST(req: NextRequest) {
       { text: '✅ Confirm', callback_data: `confirm_order:${order.id}` },
       { text: '❌ Cancel', callback_data: `cancel_order:${order.id}` },
     ],
-    ...(chatUrl ? [[{ text: '💬 Chat with customer', callback_data: `chat_reply:${shortId}` }]] : []),
+    ...(chatUrl ? [[{ text: '💬 Chat with customer', callback_data: `chat_reply:${order.id}` }]] : []),
   ]
 
   const ownerResults = await Promise.allSettled(

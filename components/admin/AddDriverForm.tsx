@@ -45,7 +45,7 @@ export default function AddDriverForm({ onCreated }: { onCreated?: () => void })
             {error && <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>}
             <form onSubmit={submit} className="space-y-3">
               <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Telegram ID</label>
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Telegram ID</label>
                 <input
                   required
                   placeholder="123456789"
@@ -53,10 +53,10 @@ export default function AddDriverForm({ onCreated }: { onCreated?: () => void })
                   onChange={(e) => setForm({ ...form, telegram_id: e.target.value })}
                   className="admin-input"
                 />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">The driver can find their ID via @userinfobot on Telegram</p>
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">The driver can find their ID via @userinfobot on Telegram</p>
               </div>
               <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">First name</label>
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">First name</label>
                 <input
                   required
                   value={form.first_name}
@@ -65,7 +65,7 @@ export default function AddDriverForm({ onCreated }: { onCreated?: () => void })
                 />
               </div>
               <div>
-                <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Last name (optional)</label>
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">Last name (optional)</label>
                 <input
                   value={form.last_name}
                   onChange={(e) => setForm({ ...form, last_name: e.target.value })}

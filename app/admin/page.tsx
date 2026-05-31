@@ -66,7 +66,7 @@ export default function AdminPage() {
           { label: 'Active drivers', value: loading ? '—' : stats?.drivers, color: 'text-purple-600 dark:text-purple-400' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white dark:bg-gray-900 rounded-2xl p-4 shadow-sm">
-            <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">{stat.label}</p>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">{stat.label}</p>
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
           </div>
         ))}
@@ -78,14 +78,14 @@ export default function AdminPage() {
         </div>
         <div className="divide-y divide-gray-50 dark:divide-gray-800">
           {loading ? (
-            <p className="px-4 py-8 text-center text-gray-400">Loading...</p>
+            <p className="px-4 py-8 text-center text-gray-500">Loading...</p>
           ) : recentOrders.length === 0 ? (
-            <p className="px-4 py-8 text-center text-gray-400">No orders yet</p>
+            <p className="px-4 py-8 text-center text-gray-500">No orders yet</p>
           ) : recentOrders.map((order) => (
             <div key={order.id} className="px-4 py-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-mono text-xs text-gray-400">#{order.id.slice(-6).toUpperCase()}</span>
+                  <span className="font-mono text-xs text-gray-600 dark:text-gray-400">#{order.id.slice(-6).toUpperCase()}</span>
                   <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]}`}>
                     {STATUS_LABELS[order.status]}
                   </span>
