@@ -16,7 +16,6 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
   const inCart = cart.items.find((i) => i.productId === product.id)
   const qty = inCart?.quantity ?? 0
   const inStock = product.stock_qty > 0
-  const cartHasItems = cart.items.length > 0
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -31,12 +30,10 @@ export default function ProductDetailModal({ product, cart, onClose, onAdd, onRe
       onClick={onClose}
     >
       <div
-        // The modal stays glued to the bottom (parent uses items-end). When the
-        // cart bar is visible, simply make the card shorter so the bar still
-        // fits — no transparent gap, no upward shift.
-        className={`bg-white w-full max-w-md rounded-t-3xl overflow-hidden flex flex-col shadow-2xl animate-[slideUp_0.25s_ease-out] ${
-          cartHasItems ? 'max-h-[calc(92vh-88px)]' : 'max-h-[92vh]'
-        }`}
+        // Modal glued to bottom (parent uses items-end). The cart bar is
+        // hidden by CatalogueView while this modal is open, so the footer
+        // here is always tappable.
+        className="bg-white w-full max-w-md rounded-t-3xl overflow-hidden flex flex-col shadow-2xl animate-[slideUp_0.25s_ease-out] max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top grab handle */}

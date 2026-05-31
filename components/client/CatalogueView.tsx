@@ -320,8 +320,11 @@ export default function CatalogueView({ catalogue, cart, onCartChange, onCheckou
         )}
       </div>
 
-      {/* ── Cart bar — sticky above the product-detail modal ─────────── */}
-      {count > 0 && (
+      {/* ── Cart bar ───────────────────────────────────────────────────
+            Hidden while the detail modal is open so its own footer (Add /
+            qty stepper) stays reachable. The cart bar reappears the moment
+            the modal closes. */}
+      {count > 0 && !openProduct && (
         <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto px-4 pb-6 z-[60] pointer-events-none">
           <button
             onClick={onCheckout}
